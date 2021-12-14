@@ -1,6 +1,11 @@
 name: Bundle and Publish Sources
-on: workflow_dispatch
-branches:
+on:
+  push:
+    branches:
+      - '**'
+      - '!main'
+  workflow_dispatch:
+    branches:
       - '**'
       - '!main'
 
