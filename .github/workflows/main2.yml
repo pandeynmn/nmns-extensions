@@ -1,5 +1,5 @@
 name: Bundle and Publish Sources
-on: workflow_dispatch
+on: workflow_dispatch:
   branches:
       - '**'
       - '!main'
