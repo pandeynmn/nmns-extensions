@@ -4,7 +4,7 @@ import {
     SearchRequest,
     Source 
 } from 'paperback-extensions-common'
-import { ReaperScans } from '../ReaperScans/reaperScans'
+import { ReaperScans } from '../ReaperScans/ReaperScans'
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 
