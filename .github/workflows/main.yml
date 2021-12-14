@@ -35,7 +35,7 @@ jobs:
                   path: bundles
 
             - run: npm install
-            - run: npm run bundle -- --folder=main
+            - run: npm run bundle
 
             - name: Deploy to GitHub Pages
               uses: JamesIves/github-pages-deploy-action@4.1.0
