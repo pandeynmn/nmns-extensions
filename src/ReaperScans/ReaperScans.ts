@@ -14,7 +14,7 @@ const RS_DOMAIN = 'https://reaperscans.com/'
 export const ReaperScansInfo: SourceInfo = {
     version: getExportVersion('0.0.1'),
     name: 'ReaperScans',
-    description: 'Extension that pulls manga from ReaperScans, includes advance genre search. Uses modified version of Madara generic source',
+    description: 'Extension that pulls manga from ReaperScans, includes advance genre search. Uses modified version of Madara generic source.',
     author: 'NmN',
     authorWebsite: 'http://github.com/pandeynmm',
     icon: 'icon.png',
