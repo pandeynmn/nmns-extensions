@@ -17,7 +17,7 @@ export const ReaperScansInfo: SourceInfo = {
     description: 'Extension that pulls manga from ReaperScans, includes advance genre search. Uses modified version of Madara generic source!!',
     author: 'NmN',
     authorWebsite: 'http://github.com/pandeynmm',
-    icon: 'icon.png',
+    icon: 'logo.png',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: RS_DOMAIN,
     sourceTags: [
