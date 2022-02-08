@@ -33,6 +33,10 @@ export const MangaReaderToInfo: SourceInfo = {
             text: 'English',
             type: TagType.GREY,
         },
+        {
+            text: 'Experimental',
+            type: TagType.YELLOW,
+        },
     ],
 }
 
@@ -130,6 +134,34 @@ export class MangaReaderTo extends Source {
         const $ = this.cheerio.load(response.data)
 
         this.parser.parseHomeSections($, sectionCallback)
+    }
+
+    override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
+        let page = metadata?.page ?? 1
+        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+
+        let url = ''
+        if      (homepageSectionId == '1') url = `${MANGAREADER_DOMAIN}/latest-updated`
+        else if (homepageSectionId == '3') url = `${MANGAREADER_DOMAIN}/most-viewed`
+        else if (homepageSectionId == '4') url = `${MANGAREADER_DOMAIN}/completed`
+
+        const request = createRequestObject({
+            url,
+            method: 'GET',
+            param: `?page=${page}`,
+        })
+
+        const response = await this.requestManager.schedule(request, 1)
+        const $ = this.cheerio.load(response.data)
+        const manga: MangaTile[] = this.parser.parseViewMore($)
+
+        page++
+        if (manga.length < 10) page = -1
+
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
+        })
     }
 
     /**

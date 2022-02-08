@@ -134,10 +134,10 @@ export class Parser {
 
     parseHomeSections($: CheerioStatic, sectionCallback: (section: HomeSection) => void): void {
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: HomeSectionType.featured,})
-        const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: HomeSectionType.singleRowNormal,})
+        const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: HomeSectionType.singleRowNormal, view_more: true,})
         const section2 = createHomeSection({ id: '2', title: 'Trending Titles', type: HomeSectionType.singleRowNormal,})
-        const section3 = createHomeSection({ id: '3', title: 'Recommended', type: HomeSectionType.singleRowNormal,})
-        const section4 = createHomeSection({ id: '4', title: 'Completed Titles', type: HomeSectionType.singleRowNormal,})
+        const section3 = createHomeSection({ id: '3', title: 'Recommended', type: HomeSectionType.singleRowNormal, view_more: true,})
+        const section4 = createHomeSection({ id: '4', title: 'Completed Titles', type: HomeSectionType.singleRowNormal, view_more: true,})
 
         const featured   : MangaTile[] = []
         const latest     : MangaTile[] = []
@@ -238,6 +238,24 @@ export class Parser {
         section4.items = completed
         sectionCallback(section4)
 
+    }
+
+    parseViewMore($: CheerioStatic): MangaTile[] {
+        const results: MangaTile[] = []
+
+        for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
+            const id    = ($('.manga-poster', obj).attr('href') ?? '').replace('/', '')
+            const title = $('img', obj).attr('alt') ?? ''
+            const image = $('img', obj).attr('src') ?? ''
+            results.push(
+                createMangaTile({
+                    id,
+                    image,
+                    title: createIconText({ text: this.encodeText(title) }),
+                })
+            )
+        }
+        return results
     }
 
     encodeText(str: string) {
