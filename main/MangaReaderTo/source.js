@@ -31502,6 +31502,10 @@ exports.MangaReaderToInfo = {
             text: 'English',
             type: paperback_extensions_common_1.TagType.GREY,
         },
+        {
+            text: 'Experimental',
+            type: paperback_extensions_common_1.TagType.YELLOW,
+        },
     ],
 };
 class MangaReaderTo extends paperback_extensions_common_1.Source {
@@ -31594,6 +31598,36 @@ class MangaReaderTo extends paperback_extensions_common_1.Source {
             const response = yield this.requestManager.schedule(request, 2);
             const $ = this.cheerio.load(response.data);
             this.parser.parseHomeSections($, sectionCallback);
+        });
+    }
+    getViewMoreItems(homepageSectionId, metadata) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
+            if (page == -1)
+                return createPagedResults({ results: [], metadata: { page: -1 } });
+            let url = '';
+            if (homepageSectionId == '1')
+                url = `${MANGAREADER_DOMAIN}/latest-updated`;
+            else if (homepageSectionId == '3')
+                url = `${MANGAREADER_DOMAIN}/most-viewed`;
+            else if (homepageSectionId == '4')
+                url = `${MANGAREADER_DOMAIN}/completed`;
+            const request = createRequestObject({
+                url,
+                method: 'GET',
+                param: `?page=${page}`,
+            });
+            const response = yield this.requestManager.schedule(request, 1);
+            const $ = this.cheerio.load(response.data);
+            const manga = this.parser.parseViewMore($);
+            page++;
+            if (manga.length < 10)
+                page = -1;
+            return createPagedResults({
+                results: manga,
+                metadata: { page: page },
+            });
         });
     }
     /**
@@ -31753,10 +31787,10 @@ class Parser {
     parseHomeSections($, sectionCallback) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: paperback_extensions_common_1.HomeSectionType.featured, });
-        const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section2 = createHomeSection({ id: '2', title: 'Trending Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
-        const section3 = createHomeSection({ id: '3', title: 'Recommended', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
-        const section4 = createHomeSection({ id: '4', title: 'Completed Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const section3 = createHomeSection({ id: '3', title: 'Recommended', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
+        const section4 = createHomeSection({ id: '4', title: 'Completed Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const featured = [];
         const latest = [];
         const trending = [];
@@ -31838,6 +31872,21 @@ class Parser {
         }
         section4.items = completed;
         sectionCallback(section4);
+    }
+    parseViewMore($) {
+        var _a, _b, _c;
+        const results = [];
+        for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
+            const id = ((_a = $('.manga-poster', obj).attr('href')) !== null && _a !== void 0 ? _a : '').replace('/', '');
+            const title = (_b = $('img', obj).attr('alt')) !== null && _b !== void 0 ? _b : '';
+            const image = (_c = $('img', obj).attr('src')) !== null && _c !== void 0 ? _c : '';
+            results.push(createMangaTile({
+                id,
+                image,
+                title: createIconText({ text: this.encodeText(title) }),
+            }));
+        }
+        return results;
     }
     encodeText(str) {
         return str.replace(/&#([0-9]{1,4});/gi, (_, numStr) => {
