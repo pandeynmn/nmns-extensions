@@ -20,7 +20,7 @@ import { ImageInterceptor } from './interceptors'
 const MANGAREADER_DOMAIN = 'https://mangareader.to'
 
 export const MangaReaderToInfo: SourceInfo = {
-    version: '2.0.0',
+    version: '2.0.1',
     name: 'MangaReaderTo',
     description: 'Extension that pulls manga from mangareader.to \nCanvas code by @Paper#1932',
     author: 'NmN | Ruii',
