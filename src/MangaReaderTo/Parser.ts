@@ -104,7 +104,14 @@ export class Parser {
         for (const obj of chapterList) {
             const imageUrl = $(obj).attr('data-url')
             if (!imageUrl) continue
-            pages.push(imageUrl.trim() + '&shuffledImage=whyNot')
+
+            if ($(obj).hasClass('shuffled')) {
+                console.log('Shuffled')
+                pages.push(imageUrl.trim() + '&shuffle=true')
+            } else {
+                pages.push(imageUrl.trim() + '&shuffle=false')
+                console.log('Not shuffled')
+            }
         }
         return createChapterDetails({
             id,

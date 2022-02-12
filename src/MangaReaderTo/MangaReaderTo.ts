@@ -79,7 +79,6 @@ export class MangaReaderTo extends Source {
         let response = await this.requestManager.schedule(chapRequest, 3)
         const jsonData = JSON.parse(response.data)
         let $ = this.cheerio.load(jsonData.html)
-        console.log(`this is new data 2 ${$.html()}`)
 
         const arrOfIds: string[] = this.parser.parseChapterId($)
 
