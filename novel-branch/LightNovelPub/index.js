@@ -3046,7 +3046,7 @@ exports.timesnewroman36 = { "height": 42,
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.interceptResponse = exports.decodeHTMLEntity = exports.spliterate = void 0;
-const _fonts_1 = require("../.fonts");
+const _fonts_1 = require("./.fonts");
 const BMP_HEADER1 = [0x42, 0x4D];
 // insert 4 bytes of file size here, little-endian, 54 bytes header + img data size
 const BMP_HEADER2 = [0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00];
@@ -3236,7 +3236,7 @@ function decodeHTMLEntity(str) {
         .replace(/&hearts;/g, '');
 }
 exports.decodeHTMLEntity = decodeHTMLEntity;
-function interceptResponse(response, cheerio, settings) {
+function interceptResponse(response, cheerio, settings, selector) {
     var _a, _b, _c;
     if ((response.request.url.includes('ttiparse') || ((_a = response.request.param) === null || _a === void 0 ? void 0 : _a.includes('ttiparse'))) && (response.request.url.includes('ttipage') || ((_b = response.request.param) === null || _b === void 0 ? void 0 : _b.includes('ttipage')))) {
         console.log(`Intercepting ${response.request.url}`);
@@ -3254,7 +3254,7 @@ function interceptResponse(response, cheerio, settings) {
             }
         }
         const $ = cheerio.load(response.data);
-        const arr = $('#chapter-container > p').toArray();
+        const arr = $(selector).toArray();
         const tarr = [];
         for (const i of arr) {
             tarr.push(decodeHTMLEntity($(i).text()));
@@ -3267,7 +3267,7 @@ function interceptResponse(response, cheerio, settings) {
 }
 exports.interceptResponse = interceptResponse;
 
-},{"../.fonts":84}],88:[function(require,module,exports){
+},{"./.fonts":84}],88:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -3281,7 +3281,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LightNovelPub = exports.LightNovelPubInfo = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
-const LNInterceptor_1 = require("./LNInterceptor");
+const LNInterceptor_1 = require("../LNInterceptor");
 const parser_1 = require("./parser");
 const settings_1 = require("./settings");
 const LNPUB_DOMAIN = 'https://www.lightnovelpub.com';
@@ -3310,28 +3310,29 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
     constructor() {
         super(...arguments);
         this.parser = new parser_1.Parser();
+        this.stateManager = createSourceStateManager({});
+        this.options = () => __awaiter(this, void 0, void 0, function* () {
+            return {
+                textColor: settings_1.COLORS[(yield (0, settings_1.getTextColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
+                backgroundColor: settings_1.COLORS[(yield (0, settings_1.getBackgroundColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
+                font: `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(' ', '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`,
+                padding: {
+                    horizontal: yield (0, settings_1.getHorizontalPadding)(this.stateManager),
+                    vertical: yield (0, settings_1.getVerticalPadding)(this.stateManager)
+                },
+                width: yield (0, settings_1.getImageWidth)(this.stateManager),
+                constantWidth: true,
+                lines: yield (0, settings_1.getLinesPerPage)(this.stateManager)
+            };
+        });
         this.requestManager = createRequestManager({
             requestsPerSecond: 10,
             requestTimeout: 10000,
             interceptor: {
                 interceptRequest: (request) => __awaiter(this, void 0, void 0, function* () { return request; }),
-                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () {
-                    return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, {
-                        textColor: settings_1.COLORS[(yield (0, settings_1.getTextColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
-                        backgroundColor: settings_1.COLORS[(yield (0, settings_1.getBackgroundColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
-                        font: `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(' ', '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`,
-                        padding: {
-                            horizontal: yield (0, settings_1.getHorizontalPadding)(this.stateManager),
-                            vertical: yield (0, settings_1.getVerticalPadding)(this.stateManager)
-                        },
-                        width: yield (0, settings_1.getImageWidth)(this.stateManager),
-                        constantWidth: true,
-                        lines: yield (0, settings_1.getLinesPerPage)(this.stateManager)
-                    });
-                })
+                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () { return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, yield this.options(), '#chapter-container > p'); })
             }
         });
-        this.stateManager = createSourceStateManager({});
     }
     getSourceMenu() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -3477,7 +3478,7 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
 }
 exports.LightNovelPub = LightNovelPub;
 
-},{"./LNInterceptor":87,"./parser":89,"./settings":90,"paperback-extensions-common":8}],89:[function(require,module,exports){
+},{"../LNInterceptor":87,"./parser":89,"./settings":90,"paperback-extensions-common":8}],89:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -3491,7 +3492,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Parser = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
-const LNInterceptor_1 = require("./LNInterceptor");
+const LNInterceptor_1 = require("../LNInterceptor");
 const settings_1 = require("./settings");
 class Parser {
     parseMangaDetails($, mangaId) {
@@ -3614,19 +3615,36 @@ class Parser {
         return more;
     }
     parseHomeSections($, sectionCallback) {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: paperback_extensions_common_1.HomeSectionType.featured, });
-        const section1 = createHomeSection({ id: '1', title: 'Latest Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const section1 = createHomeSection({ id: '1', title: 'Latest Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section2 = createHomeSection({ id: '2', title: 'New Ongoing Release', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
-        const section3 = createHomeSection({ id: '3', title: 'Popular Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
+        const section3 = createHomeSection({ id: '3', title: 'Weekly Most Active', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const rankList = [];
         const latest = [];
         const newOngoing = [];
+        const weekly = [];
+        const arrRank = $('.rank-container:nth-child(7) ul:nth-child(2) li').toArray();
         const arrLatest = $('.novel-list.horizontal li').toArray();
         const arrNewOngoing = $('#new-novel-section ul li').toArray();
-        for (const obj of arrLatest) {
+        const arrWeekly = $('section.container:nth-child(6) > div:nth-child(2) > ul:nth-child(1) li').toArray();
+        for (const obj of arrRank) {
             const id = (_b = (_a = $('a', obj).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
-            const title = (_c = $('h4', obj).text()) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = $('img', obj).attr('data-src')) !== null && _d !== void 0 ? _d : '';
+            const title = (_c = $('h4', obj).text().trim()) !== null && _c !== void 0 ? _c : '';
+            const image = (_d = $('img', obj).attr('data-src').replace('158x210', '300x400')) !== null && _d !== void 0 ? _d : '';
+            console.log(`${title} - ${(0, LNInterceptor_1.decodeHTMLEntity)(title)}`);
+            rankList.push(createMangaTile({
+                id,
+                image,
+                title: createIconText({ text: this.encodeText(title) }),
+            }));
+        }
+        section0.items = rankList;
+        sectionCallback(section0);
+        for (const obj of arrLatest) {
+            const id = (_f = (_e = $('a', obj).attr('href')) === null || _e === void 0 ? void 0 : _e.split('/')[2]) !== null && _f !== void 0 ? _f : '';
+            const title = (_g = $('h4', obj).text()) !== null && _g !== void 0 ? _g : '';
+            const image = (_h = $('img', obj).attr('data-src')) !== null && _h !== void 0 ? _h : '';
             latest.push(createMangaTile({
                 id,
                 image,
@@ -3636,9 +3654,9 @@ class Parser {
         section1.items = latest;
         sectionCallback(section1);
         for (const obj of arrNewOngoing) {
-            const id = (_f = (_e = $('a', obj).attr('href')) === null || _e === void 0 ? void 0 : _e.replace('/novel/', '').replace('/', '')) !== null && _f !== void 0 ? _f : '';
-            const title = (_g = $('a', obj).attr('title')) !== null && _g !== void 0 ? _g : '';
-            const image = (_h = $('img', obj).attr('data-src')) !== null && _h !== void 0 ? _h : '';
+            const id = (_k = (_j = $('a', obj).attr('href')) === null || _j === void 0 ? void 0 : _j.replace('/novel/', '').replace('/', '')) !== null && _k !== void 0 ? _k : '';
+            const title = (_l = $('a', obj).attr('title')) !== null && _l !== void 0 ? _l : '';
+            const image = (_m = $('img', obj).attr('data-src')) !== null && _m !== void 0 ? _m : '';
             newOngoing.push(createMangaTile({
                 id,
                 image,
@@ -3647,6 +3665,18 @@ class Parser {
         }
         section2.items = newOngoing;
         sectionCallback(section2);
+        for (const obj of arrWeekly) {
+            const id = (_p = (_o = $('a', obj).attr('href')) === null || _o === void 0 ? void 0 : _o.split('/')[2]) !== null && _p !== void 0 ? _p : '';
+            const title = (_q = $('h4', obj).text()) !== null && _q !== void 0 ? _q : '';
+            const image = (_r = $('img', obj).attr('data-src')) !== null && _r !== void 0 ? _r : '';
+            weekly.push(createMangaTile({
+                id,
+                image,
+                title: createIconText({ text: this.encodeText(title) }),
+            }));
+        }
+        section3.items = weekly;
+        sectionCallback(section3);
     }
     encodeText(str) {
         return str.replace(/&#([0-9]{1,4});/gi, (_, numStr) => {
@@ -3657,7 +3687,7 @@ class Parser {
 }
 exports.Parser = Parser;
 
-},{"./LNInterceptor":87,"./settings":90,"paperback-extensions-common":8}],90:[function(require,module,exports){
+},{"../LNInterceptor":87,"./settings":90,"paperback-extensions-common":8}],90:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }

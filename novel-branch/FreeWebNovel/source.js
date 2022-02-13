@@ -466,7 +466,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FreeWebNovelInfo = exports.FreeWebNovel = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
-const LNInterceptor_1 = require("./LNInterceptor");
+const LNInterceptor_1 = require("../LNInterceptor");
 const WEBSITE_URL = 'https://freewebnovel.com';
 const REQUEST_RETRIES = 3;
 const SETTINGS = {
@@ -486,28 +486,29 @@ const COLORS = {
 class FreeWebNovel extends paperback_extensions_common_1.Source {
     constructor() {
         super(...arguments);
+        this.stateManager = createSourceStateManager({});
+        this.options = () => __awaiter(this, void 0, void 0, function* () {
+            return {
+                textColor: COLORS[(yield getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+                backgroundColor: COLORS[(yield getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+                font: `${(yield getFont(this.stateManager)).toLowerCase().replace(' ', '')}${yield getFontSize(this.stateManager)}`,
+                padding: {
+                    horizontal: yield getHorizontalPadding(this.stateManager),
+                    vertical: yield getVerticalPadding(this.stateManager)
+                },
+                width: yield getImageWidth(this.stateManager),
+                constantWidth: true,
+                lines: yield getLinesPerPage(this.stateManager)
+            };
+        });
         this.requestManager = createRequestManager({
             requestsPerSecond: 10,
             requestTimeout: 10000,
             interceptor: {
                 interceptRequest: (request) => __awaiter(this, void 0, void 0, function* () { return request; }),
-                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () {
-                    return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, {
-                        textColor: COLORS[(yield getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                        backgroundColor: COLORS[(yield getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                        font: `${(yield getFont(this.stateManager)).toLowerCase().replace(' ', '')}${yield getFontSize(this.stateManager)}`,
-                        padding: {
-                            horizontal: yield getHorizontalPadding(this.stateManager),
-                            vertical: yield getVerticalPadding(this.stateManager)
-                        },
-                        width: yield getImageWidth(this.stateManager),
-                        constantWidth: true,
-                        lines: yield getLinesPerPage(this.stateManager)
-                    });
-                })
+                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () { return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, yield this.options(), 'div.txt > p'); })
             }
         });
-        this.stateManager = createSourceStateManager({});
     }
     getSourceMenu() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -898,11 +899,11 @@ function styleSettings(stateManager) {
     });
 }
 
-},{"./LNInterceptor":54,"paperback-extensions-common":5}],54:[function(require,module,exports){
+},{"../LNInterceptor":54,"paperback-extensions-common":5}],54:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.interceptResponse = exports.decodeHTMLEntity = exports.spliterate = void 0;
-const _fonts_1 = require("../.fonts");
+const _fonts_1 = require("./.fonts");
 const BMP_HEADER1 = [0x42, 0x4D];
 // insert 4 bytes of file size here, little-endian, 54 bytes header + img data size
 const BMP_HEADER2 = [0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00];
@@ -1092,7 +1093,7 @@ function decodeHTMLEntity(str) {
         .replace(/&hearts;/g, '');
 }
 exports.decodeHTMLEntity = decodeHTMLEntity;
-function interceptResponse(response, cheerio, settings) {
+function interceptResponse(response, cheerio, settings, selector) {
     var _a, _b, _c;
     if ((response.request.url.includes('ttiparse') || ((_a = response.request.param) === null || _a === void 0 ? void 0 : _a.includes('ttiparse'))) && (response.request.url.includes('ttipage') || ((_b = response.request.param) === null || _b === void 0 ? void 0 : _b.includes('ttipage')))) {
         console.log(`Intercepting ${response.request.url}`);
@@ -1110,7 +1111,7 @@ function interceptResponse(response, cheerio, settings) {
             }
         }
         const $ = cheerio.load(response.data);
-        const arr = $('div.txt > p').toArray();
+        const arr = $(selector).toArray();
         const tarr = [];
         for (const i of arr) {
             tarr.push(decodeHTMLEntity($(i).text()));
@@ -1123,5 +1124,5 @@ function interceptResponse(response, cheerio, settings) {
 }
 exports.interceptResponse = interceptResponse;
 
-},{"../.fonts":50}]},{},[53])(53)
+},{"./.fonts":50}]},{},[53])(53)
 });
