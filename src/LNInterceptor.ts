@@ -1,6 +1,6 @@
 import { Response } from 'paperback-extensions-common'
 
-import { fonts } from '../.fonts'
+import { fonts } from './.fonts'
 
 const BMP_HEADER1 = [0x42, 0x4D]
 // insert 4 bytes of file size here, little-endian, 54 bytes header + img data size
@@ -191,7 +191,7 @@ export function decodeHTMLEntity(str: string): string {
         .replace(/&hearts;/g, '')
 }
 
-export function interceptResponse(response: Response, cheerio: any, settings: ImageOptions): Response {
+export function interceptResponse(response: Response, cheerio: any, settings: ImageOptions, selector: string): Response {
     if((response.request.url.includes('ttiparse') || response.request.param?.includes('ttiparse')) && (response.request.url.includes('ttipage') || response.request.param?.includes('ttipage'))) {
         console.log(`Intercepting ${response.request.url}`)
         let pageNum = 1
@@ -206,7 +206,7 @@ export function interceptResponse(response: Response, cheerio: any, settings: Im
             }
         }
         const $ = cheerio.load(response.data)
-        const arr = $('#chapter-container > p').toArray()
+        const arr = $(selector).toArray()
         const tarr: string[] = []
         for(const i of arr) {
             tarr.push(decodeHTMLEntity($(i).text()))

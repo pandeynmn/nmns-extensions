@@ -10,7 +10,7 @@ import {
     Tag,
     TagSection,
 } from 'paperback-extensions-common'
-import { decodeHTMLEntity, spliterate } from './LNInterceptor'
+import { decodeHTMLEntity, spliterate } from '../LNInterceptor'
 
 import { COLORS,
     getBackgroundColor,
@@ -152,15 +152,35 @@ export class Parser {
 
     parseHomeSections($: CheerioStatic, sectionCallback: (section: HomeSection) => void): void {
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: HomeSectionType.featured,})
-        const section1 = createHomeSection({ id: '1', title: 'Latest Titles', type: HomeSectionType.singleRowNormal,})
+        const section1 = createHomeSection({ id: '1', title: 'Latest Titles', type: HomeSectionType.singleRowNormal, view_more: true,})
         const section2 = createHomeSection({ id: '2', title: 'New Ongoing Release', type: HomeSectionType.singleRowNormal, view_more: true,})
-        const section3 = createHomeSection({ id: '3', title: 'Popular Titles', type: HomeSectionType.singleRowNormal, view_more: true,})
+        const section3 = createHomeSection({ id: '3', title: 'Weekly Most Active', type: HomeSectionType.singleRowNormal,})
 
+        const rankList: MangaTile[] = []
         const latest: MangaTile[] = []
         const newOngoing: MangaTile[] = []
+        const weekly: MangaTile[] = []
 
-        const arrLatest = $('.novel-list.horizontal li').toArray()
+        const arrRank       = $('.rank-container:nth-child(7) ul:nth-child(2) li').toArray()
+        const arrLatest     = $('.novel-list.horizontal li').toArray()
         const arrNewOngoing = $('#new-novel-section ul li').toArray()
+        const arrWeekly     = $('section.container:nth-child(6) > div:nth-child(2) > ul:nth-child(1) li').toArray()
+
+        for (const obj of arrRank) {
+            const id     = $('a', obj).attr('href')?.split('/')[2] ?? ''
+            const title  = $('h4', obj).text().trim() ?? ''
+            const image  = $('img', obj).attr('data-src').replace('158x210', '300x400') ?? ''
+            console.log(`${title} - ${decodeHTMLEntity(title)}`)
+            rankList.push(
+                createMangaTile({
+                    id,
+                    image,
+                    title: createIconText({ text: this.encodeText(title)}),
+                })
+            )
+        }
+        section0.items = rankList
+        sectionCallback(section0)
 
         for (const obj of arrLatest) {
             const id     = $('a', obj).attr('href')?.split('/')[2] ?? ''
@@ -192,9 +212,24 @@ export class Parser {
         section2.items = newOngoing
         sectionCallback(section2)
 
+        for (const obj of arrWeekly) {
+            const id     = $('a', obj).attr('href')?.split('/')[2] ?? ''
+            const title  = $('h4', obj).text() ?? ''
+            const image  = $('img', obj).attr('data-src') ?? ''
+            weekly.push(
+                createMangaTile({
+                    id,
+                    image,
+                    title: createIconText({ text: this.encodeText(title) }),
+                })
+            )
+        }
+        section3.items = weekly
+        sectionCallback(section3)
+
     }
 
-    encodeText(str: string) {
+    encodeText(str: string): string {
         return str.replace(/&#([0-9]{1,4});/gi, (_, numStr) => {
             const num = parseInt(numStr, 10)
             return String.fromCharCode(num)

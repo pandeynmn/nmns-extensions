@@ -21,8 +21,9 @@ import {
 } from 'paperback-extensions-common'
 
 import { decodeHTMLEntity,
+    ImageOptions,
     interceptResponse,
-    spliterate } from './LNInterceptor'
+    spliterate } from '../LNInterceptor'
 
 const WEBSITE_URL = 'https://freewebnovel.com'
 const REQUEST_RETRIES = 3
@@ -43,26 +44,29 @@ const COLORS: any = {
 }
 
 export class FreeWebNovel extends Source {
+    stateManager: SourceStateManager = createSourceStateManager({})
+    options = async(): Promise<ImageOptions> => {
+        return {
+            textColor: COLORS[(await getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+            backgroundColor: COLORS[(await getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+            font: `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`,
+            padding: {
+                horizontal: await getHorizontalPadding(this.stateManager),
+                vertical: await getVerticalPadding(this.stateManager)
+            },
+            width: await getImageWidth(this.stateManager),
+            constantWidth: true,
+            lines: await getLinesPerPage(this.stateManager)
+        }
+    }
     requestManager: RequestManager = createRequestManager({
         requestsPerSecond: 10,
         requestTimeout: 10000,
         interceptor: {
             interceptRequest: async (request) => {return request},
-            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, {
-                textColor: COLORS[(await getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                backgroundColor: COLORS[(await getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                font: `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`,
-                padding: {
-                    horizontal: await getHorizontalPadding(this.stateManager),
-                    vertical: await getVerticalPadding(this.stateManager)
-                },
-                width: await getImageWidth(this.stateManager),
-                constantWidth: true,
-                lines: await getLinesPerPage(this.stateManager)
-            })}
+            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, await this.options(), 'div.txt > p')}
         }
     })
-    stateManager: SourceStateManager = createSourceStateManager({})
     override async getSourceMenu(): Promise<Section> {
         return styleSettings(this.stateManager)
     }

@@ -21,8 +21,9 @@ import {
 } from 'paperback-extensions-common'
 
 import { decodeHTMLEntity,
+    ImageOptions,
     interceptResponse,
-    spliterate } from './LNInterceptor'
+    spliterate } from '../LNInterceptor'
 import { Parser } from './parser'
 
 import { COLORS,
@@ -63,27 +64,31 @@ export const LightNovelPubInfo: SourceInfo = {
 
 export class LightNovelPub extends Source {
     parser = new Parser()
+    stateManager: SourceStateManager = createSourceStateManager({})
+
+    options = async(): Promise<ImageOptions> => {
+        return {
+            textColor: COLORS[(await getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+            backgroundColor: COLORS[(await getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
+            font: `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`,
+            padding: {
+                horizontal: await getHorizontalPadding(this.stateManager),
+                vertical: await getVerticalPadding(this.stateManager)
+            },
+            width: await getImageWidth(this.stateManager),
+            constantWidth: true,
+            lines: await getLinesPerPage(this.stateManager)
+        }
+    }
 
     requestManager: RequestManager = createRequestManager({
         requestsPerSecond: 10,
         requestTimeout: 10000,
         interceptor: {
             interceptRequest: async (request) => {return request},
-            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, {
-                textColor: COLORS[(await getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                backgroundColor: COLORS[(await getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-                font: `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`,
-                padding: {
-                    horizontal: await getHorizontalPadding(this.stateManager),
-                    vertical: await getVerticalPadding(this.stateManager)
-                },
-                width: await getImageWidth(this.stateManager),
-                constantWidth: true,
-                lines: await getLinesPerPage(this.stateManager)
-            })}
+            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, await this.options(), '#chapter-container > p')}
         }
     })
-    stateManager: SourceStateManager = createSourceStateManager({})
     override async getSourceMenu(): Promise<Section> {
         return settings(this.stateManager)
     }
