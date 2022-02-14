@@ -70,7 +70,7 @@ export class LightNovelPub extends Source {
         return {
             textColor: COLORS[(await getTextColor(this.stateManager)).toLowerCase().replace(' ', '_')],
             backgroundColor: COLORS[(await getBackgroundColor(this.stateManager)).toLowerCase().replace(' ', '_')],
-            font: `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`,
+            font: `${(await getFont(this.stateManager)).toLowerCase().replace(/ /g, '')}${await getFontSize(this.stateManager)}`,
             padding: {
                 horizontal: await getHorizontalPadding(this.stateManager),
                 vertical: await getVerticalPadding(this.stateManager)
@@ -125,7 +125,7 @@ export class LightNovelPub extends Source {
             textSegments.push(decodeHTMLEntity($(chapterTextSeg).text()))
         }
         const text = textSegments.join('\n')
-        const lines = Math.ceil(spliterate(text.replace(/[^\x00-\x7F]/g, ''), (await getImageWidth(this.stateManager))-(await getHorizontalPadding(this.stateManager))*2, `${(await getFont(this.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(this.stateManager)}`).split.length/(await getLinesPerPage(this.stateManager)))
+        const lines = Math.ceil(spliterate(text.replace(/[^\x00-\x7F]/g, ''), (await getImageWidth(this.stateManager))-(await getHorizontalPadding(this.stateManager))*2, `${(await getFont(this.stateManager)).toLowerCase().replace(/ /g, '')}${await getFontSize(this.stateManager)}`).split.length/(await getLinesPerPage(this.stateManager)))
         console.log(`lines: ${lines}`)
         for(let i = 1; i <= lines; i++) {
             pages.push(`${LNPUB_DOMAIN}/novel/${mangaId}/${chapterId}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(await getSettingsString(this.stateManager))}`)
@@ -140,11 +140,37 @@ export class LightNovelPub extends Source {
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
         if(!query.title || query.title.length < 3) return createPagedResults({ results: [] })
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/search/${query.title === undefined ? '' : `?searchkey=${encodeURIComponent(query.title)}`}`,
+            // url: `${LNPUB_DOMAIN}/search/${query.title === undefined ? '' : `?searchkey=${encodeURIComponent(query.title)}`}`,
+            url: 'https://www.lightnovelpub.com/lnsearchlive',
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'LNRequestVerifyToken': 'CfDJ8LL1tUsY83pMlvlZAmXeR3SXbC5u_8jW5oJJ7wYFzRfghHWFxVt99gHp_6XiRhFnkPdkcj3_BGAYmiyk-1gC_BQM0vLsP5IZeHwCU-AjNp8niuBzXBfMBY_iL3EG9hyfq5HJqlsHike2bs34EyzRjHM',
+                'Host': 'www.lightnovelpub.com',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Content-Length': '16',
+                'Origin': 'https://www.lightnovelpub.com',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Referer': 'https://www.lightnovelpub.com/search',
+                'Cookie': '.AspNetCore.Antiforgery.NaAlh80dl8Q=CfDJ8GsuyDLZCbNJgZRljYbbcHU3f8FubbYGzO4TEQivLbrTrFS-1lbRZ7n3r9QXexin2GonRgdaWaGlbbzKUkc56J1K4jWeHODiBdLjaMbgBZ8GdVGaKiiiTyAz0W6Kgf3hp27Hldkaurq6bwC60Wk6JYU; lncoreantifrg=CfDJ8FpcgdofvCtCmAgC0s9WG2WFTE8b13JRVP7uD5W5FQlyNPD_8A1PBTqPQcSc3GoglMyiYW-6RuCO8ddKR2sGcHlG1qqGl32yGSzi6Ht_B-4H-ltF8P3ASkLvQIXI59h8pX91K1q3XwYkCQ5Q31k3cY4; googtrans=null',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-GPC': '1'
+
+            },
+            data: 'inputContent=the'
+
         })
+
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
         const $ = this.cheerio.load(response.data)
+        console.log(response.data)
         const htmlResults = $('div.ss-custom > div').toArray()
         const results: MangaTile[] = []
         for(const htmlResult of htmlResults) {

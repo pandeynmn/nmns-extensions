@@ -170,7 +170,6 @@ export class Parser {
             const id     = $('a', obj).attr('href')?.split('/')[2] ?? ''
             const title  = $('h4', obj).text().trim() ?? ''
             const image  = $('img', obj).attr('data-src').replace('158x210', '300x400') ?? ''
-            console.log(`${title} - ${decodeHTMLEntity(title)}`)
             rankList.push(
                 createMangaTile({
                     id,
