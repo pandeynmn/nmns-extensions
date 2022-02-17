@@ -3,21 +3,17 @@ import {
     ChapterDetails,
     ContentRating,
     HomeSection,
-    LanguageCode,
     Manga,
-    MangaStatus,
     MangaTile,
     PagedResults,
-    Response,
     SearchRequest,
+    Request,
     Source,
     SourceInfo,
-    Tag,
     RequestManager,
     TagType,
     SourceStateManager,
     Section,
-    FormRow
 } from 'paperback-extensions-common'
 
 import { decodeHTMLEntity,
@@ -30,16 +26,17 @@ import { COLORS,
     getBackgroundColor,
     getFont,
     getTextColor,
-    settings,
     getFontSize,
     getImageWidth,
     getLinesPerPage,
     getHorizontalPadding,
     getVerticalPadding,
-    getSettingsString} from './settings'
+    getSettingsString,
+    readerSettings } from './settings'
 
-const LNPUB_DOMAIN = 'https://www.lightnovelpub.com'
+const LNPUB_DOMAIN    = 'https://www.lightnovelpub.com'
 const REQUEST_RETRIES = 5
+const TEXT_SELECTOR   = '#chapter-container > p'
 
 export const LightNovelPubInfo: SourceInfo = {
     version: '0.0.1',
@@ -65,6 +62,7 @@ export const LightNovelPubInfo: SourceInfo = {
 export class LightNovelPub extends Source {
     parser = new Parser()
     stateManager: SourceStateManager = createSourceStateManager({})
+    baseUrl = LNPUB_DOMAIN
 
     options = async(): Promise<ImageOptions> => {
         return {
@@ -86,15 +84,22 @@ export class LightNovelPub extends Source {
         requestTimeout: 10000,
         interceptor: {
             interceptRequest: async (request) => {return request},
-            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, await this.options(), '#chapter-container > p')}
+            interceptResponse: async (response) => {return interceptResponse(response, this.cheerio, await this.options(), TEXT_SELECTOR)}
         }
     })
+
     override async getSourceMenu(): Promise<Section> {
-        return settings(this.stateManager)
+        return Promise.resolve(createSection({
+            id: 'main',
+            header: 'Source Settings',
+            rows: async () => [
+                await readerSettings(this.stateManager),
+            ]
+        }))
     }
     async getMangaDetails(mangaId: string): Promise<Manga> {
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/novel/${mangaId}`,
+            url: `${this.baseUrl}/novel/${mangaId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
@@ -103,7 +108,7 @@ export class LightNovelPub extends Source {
     }
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/novel/${mangaId}/chapters`,
+            url: `${this.baseUrl}/novel/${mangaId}/chapters`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
@@ -113,90 +118,72 @@ export class LightNovelPub extends Source {
     }
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/novel/${mangaId}/${chapterId}`,
+            url: `${this.baseUrl}/novel/${mangaId}/${chapterId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
         const $ = this.cheerio.load(response.data)
-        const pages: string[] = []
-        const textSegments: string[] = []
-        const chapterText = $('#chapter-container > p').toArray()
-        for(const chapterTextSeg of chapterText) {
-            textSegments.push(decodeHTMLEntity($(chapterTextSeg).text()))
-        }
-        const text = textSegments.join('\n')
-        const lines = Math.ceil(spliterate(text.replace(/[^\x00-\x7F]/g, ''), (await getImageWidth(this.stateManager))-(await getHorizontalPadding(this.stateManager))*2, `${(await getFont(this.stateManager)).toLowerCase().replace(/ /g, '')}${await getFontSize(this.stateManager)}`).split.length/(await getLinesPerPage(this.stateManager)))
-        console.log(`lines: ${lines}`)
-        for(let i = 1; i <= lines; i++) {
-            pages.push(`${LNPUB_DOMAIN}/novel/${mangaId}/${chapterId}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(await getSettingsString(this.stateManager))}`)
-        }
-        return createChapterDetails({
-            id: chapterId,
-            mangaId: mangaId,
-            pages: pages,
-            longStrip: false
-        })
+        return this.setPageToIntercept($, mangaId, chapterId)
     }
+
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
-        if(!query.title || query.title.length < 3) return createPagedResults({ results: [] })
+        let page = metadata?.page ?? 1
+        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+
+        const tokenRequest = createRequestObject({
+            url: `${this.baseUrl}/search`,
+            method: 'GET',
+        })
+
+        const tokenResponse = await this.requestManager.schedule(tokenRequest, REQUEST_RETRIES)
+        const $$ = this.cheerio.load(tokenResponse.data)
+        const token = this.parser.parseToken($$)
+
         const request = createRequestObject({
-            // url: `${LNPUB_DOMAIN}/search/${query.title === undefined ? '' : `?searchkey=${encodeURIComponent(query.title)}`}`,
-            url: 'https://www.lightnovelpub.com/lnsearchlive',
+            url: `${this.baseUrl}/lnsearchlive`,
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'LNRequestVerifyToken': 'CfDJ8LL1tUsY83pMlvlZAmXeR3SXbC5u_8jW5oJJ7wYFzRfghHWFxVt99gHp_6XiRhFnkPdkcj3_BGAYmiyk-1gC_BQM0vLsP5IZeHwCU-AjNp8niuBzXBfMBY_iL3EG9hyfq5HJqlsHike2bs34EyzRjHM',
-                'Host': 'www.lightnovelpub.com',
+                'LNRequestVerifyToken': token,
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate, br',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'Content-Length': '16',
-                'Origin': 'https://www.lightnovelpub.com',
-                'DNT': '1',
-                'Connection': 'keep-alive',
                 'Referer': 'https://www.lightnovelpub.com/search',
-                'Cookie': '.AspNetCore.Antiforgery.NaAlh80dl8Q=CfDJ8GsuyDLZCbNJgZRljYbbcHU3f8FubbYGzO4TEQivLbrTrFS-1lbRZ7n3r9QXexin2GonRgdaWaGlbbzKUkc56J1K4jWeHODiBdLjaMbgBZ8GdVGaKiiiTyAz0W6Kgf3hp27Hldkaurq6bwC60Wk6JYU; lncoreantifrg=CfDJ8FpcgdofvCtCmAgC0s9WG2WFTE8b13JRVP7uD5W5FQlyNPD_8A1PBTqPQcSc3GoglMyiYW-6RuCO8ddKR2sGcHlG1qqGl32yGSzi6Ht_B-4H-ltF8P3ASkLvQIXI59h8pX91K1q3XwYkCQ5Q31k3cY4; googtrans=null',
-                'Sec-Fetch-Dest': 'empty',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'same-origin',
-                'Sec-GPC': '1'
 
             },
-            data: 'inputContent=the'
+            cookies: tokenResponse.request.cookies,
+            data: `inputContent=${query.title?.replaceAll(' ', '+')}`
 
         })
 
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
-        const $ = this.cheerio.load(response.data)
-        console.log(response.data)
-        const htmlResults = $('div.ss-custom > div').toArray()
-        const results: MangaTile[] = []
-        for(const htmlResult of htmlResults) {
-            const a = $('div.pic > a', htmlResult)
-            results.push(createMangaTile({
-                id: $(a).attr('href').substring(1).split('.')[0],
-                title: createIconText({ text: $('img', a).attr('title')}),
-                image: $('img', a).attr('src')
-            }))
+        try {
+            const jsonData = JSON.parse(response.data)
+            const $ = this.cheerio.load(jsonData.resultview)
+            const manga = this.parser.parseSearchResults($)
+
+            page = -1
+            return createPagedResults({
+                results: manga,
+                metadata: { page: page },
+            })
+        } catch (error) {
+            throw new Error('\n\nRefresh Cloudflare Cookies from the Source Settings\n\n')
         }
-        return createPagedResults({ results: results })
     }
     override async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/hot`,
+            url: `${this.baseUrl}/hot`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, 2)
         const $ = this.cheerio.load(response.data)
-
         this.parser.parseHomeSections($, sectionCallback)
     }
     override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const page = metadata?.page ?? 1
         const request = createRequestObject({
-            url: `${LNPUB_DOMAIN}/${homepageSectionId}/${page}/`,
+            url: `${this.baseUrl}/${homepageSectionId}/${page}/`,
             method: 'GET'
         })
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
@@ -218,7 +205,7 @@ export class LightNovelPub extends Source {
         })
     }
     override getMangaShareUrl(mangaId: string): string {
-        return `${LNPUB_DOMAIN}/${mangaId}`
+        return `${this.baseUrl}/${mangaId}`
     }
 
     protected convertTime(timeAgo: string): Date {
@@ -239,5 +226,31 @@ export class LightNovelPub extends Source {
 
         return time
     }
-}
 
+    override getCloudflareBypassRequest(): Request {
+        return createRequestObject({
+            url: `${this.baseUrl}/hot`,
+            method: 'GET',
+        })
+    }
+
+    private async setPageToIntercept($: CheerioStatic, mangaId: string, chapterId: string) {
+        const pages: string[] = []
+        const textSegments: string[] = []
+        const chapterText = $(TEXT_SELECTOR).toArray()
+        for(const chapterTextSeg of chapterText) {
+            textSegments.push(decodeHTMLEntity($(chapterTextSeg).text()))
+        }
+        const text = textSegments.join('\n')
+        const lines = Math.ceil(spliterate(text.replace(/[^\x00-\x7F]/g, ''), (await getImageWidth(this.stateManager))-(await getHorizontalPadding(this.stateManager))*2, `${(await getFont(this.stateManager)).toLowerCase().replace(/ /g, '')}${await getFontSize(this.stateManager)}`).split.length/(await getLinesPerPage(this.stateManager)))
+        for(let i = 1; i <= lines; i++) {
+            pages.push(`${this.baseUrl}/novel/${mangaId}/${chapterId}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(await getSettingsString(this.stateManager))}`)
+        }
+        return createChapterDetails({
+            id: chapterId,
+            mangaId: mangaId,
+            pages: pages,
+            longStrip: false
+        })
+    }
+}

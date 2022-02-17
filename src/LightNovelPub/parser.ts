@@ -10,7 +10,8 @@ import {
     Tag,
     TagSection,
 } from 'paperback-extensions-common'
-import { decodeHTMLEntity, spliterate } from '../LNInterceptor'
+import { decodeHTMLEntity,
+    spliterate } from '../LNInterceptor'
 
 import { COLORS,
     getBackgroundColor,
@@ -66,14 +67,14 @@ export class Parser {
             const name = $('a', obj).attr('title') ?? ''
             const chapNum = Number($(obj).attr('data-chapterno') ?? '0')
 
-            const time = source.convertTime($('time', obj).attr('datetime') )
+            // const time = source.convertTime($('time', obj).attr('datetime') )
             chapters.push(
                 createChapter({
                     id,
                     mangaId,
                     name,
                     chapNum,
-                    time,
+                    // time,
                     langCode: LanguageCode.ENGLISH,
                 })
             )
@@ -90,7 +91,6 @@ export class Parser {
         }
         const text = textSegments.join('\n')
         const lines = Math.ceil(spliterate(text.replace(/[^\x00-\x7F]/g, ''), (await getImageWidth(source.stateManager))-(await getHorizontalPadding(source.stateManager))*2, `${(await getFont(source.stateManager)).toLowerCase().replace(' ', '')}${await getFontSize(source.stateManager)}`).split.length/(await getLinesPerPage(source.stateManager)))
-        console.log(`lines: ${lines}`)
         for(let i = 1; i <= lines; i++) {
             pages.push(`${source.LNPUB_DOMAIN}/novel/${mangaId}/${id}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(await getSettingsString(source.stateManager))}`)
         }
@@ -118,8 +118,8 @@ export class Parser {
     parseSearchResults($: CheerioSelector): MangaTile[] {
         const results: MangaTile[] = []
 
-        for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? ''
+        for (const item of $('.novel-list li').toArray()) {
+            const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             results.push(
@@ -133,10 +133,14 @@ export class Parser {
         return results
     }
 
+    parseToken($: CheerioStatic): string {
+        return $('#novelSearchForm input[type=hidden]').attr('value') ?? 'notfound'
+    }
+
     parseViewMore($: CheerioStatic): MangaTile[] {
         const more: MangaTile[] = []
         for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? ''
+            const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             more.push(
