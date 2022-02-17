@@ -696,6 +696,7 @@ const parser_1 = require("./parser");
 const settings_1 = require("./settings");
 const LNPUB_DOMAIN = 'https://www.lightnovelpub.com';
 const REQUEST_RETRIES = 5;
+const TEXT_SELECTOR = '#chapter-container > p';
 exports.LightNovelPubInfo = {
     version: '0.0.1',
     name: 'LightNovelPub',
@@ -721,11 +722,12 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
         super(...arguments);
         this.parser = new parser_1.Parser();
         this.stateManager = createSourceStateManager({});
+        this.baseUrl = LNPUB_DOMAIN;
         this.options = () => __awaiter(this, void 0, void 0, function* () {
             return {
                 textColor: settings_1.COLORS[(yield (0, settings_1.getTextColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
                 backgroundColor: settings_1.COLORS[(yield (0, settings_1.getBackgroundColor)(this.stateManager)).toLowerCase().replace(' ', '_')],
-                font: `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(' ', '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`,
+                font: `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(/ /g, '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`,
                 padding: {
                     horizontal: yield (0, settings_1.getHorizontalPadding)(this.stateManager),
                     vertical: yield (0, settings_1.getVerticalPadding)(this.stateManager)
@@ -740,19 +742,27 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
             requestTimeout: 10000,
             interceptor: {
                 interceptRequest: (request) => __awaiter(this, void 0, void 0, function* () { return request; }),
-                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () { return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, yield this.options(), '#chapter-container > p'); })
+                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () { return (0, LNInterceptor_1.interceptResponse)(response, this.cheerio, yield this.options(), TEXT_SELECTOR); })
             }
         });
     }
     getSourceMenu() {
         return __awaiter(this, void 0, void 0, function* () {
-            return (0, settings_1.settings)(this.stateManager);
+            return Promise.resolve(createSection({
+                id: 'main',
+                header: 'Source Settings',
+                rows: () => __awaiter(this, void 0, void 0, function* () {
+                    return [
+                        yield (0, settings_1.readerSettings)(this.stateManager),
+                    ];
+                })
+            }));
         });
     }
     getMangaDetails(mangaId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/novel/${mangaId}`,
+                url: `${this.baseUrl}/novel/${mangaId}`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
@@ -763,7 +773,7 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
     getChapters(mangaId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/novel/${mangaId}/chapters`,
+                url: `${this.baseUrl}/novel/${mangaId}/chapters`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
@@ -774,58 +784,61 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
     getChapterDetails(mangaId, chapterId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/novel/${mangaId}/${chapterId}`,
+                url: `${this.baseUrl}/novel/${mangaId}/${chapterId}`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
             const $ = this.cheerio.load(response.data);
-            const pages = [];
-            const textSegments = [];
-            const chapterText = $('#chapter-container > p').toArray();
-            for (const chapterTextSeg of chapterText) {
-                textSegments.push((0, LNInterceptor_1.decodeHTMLEntity)($(chapterTextSeg).text()));
-            }
-            const text = textSegments.join('\n');
-            const lines = Math.ceil((0, LNInterceptor_1.spliterate)(text.replace(/[^\x00-\x7F]/g, ''), (yield (0, settings_1.getImageWidth)(this.stateManager)) - (yield (0, settings_1.getHorizontalPadding)(this.stateManager)) * 2, `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(' ', '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`).split.length / (yield (0, settings_1.getLinesPerPage)(this.stateManager)));
-            console.log(`lines: ${lines}`);
-            for (let i = 1; i <= lines; i++) {
-                pages.push(`${LNPUB_DOMAIN}/novel/${mangaId}/${chapterId}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(yield (0, settings_1.getSettingsString)(this.stateManager))}`);
-            }
-            return createChapterDetails({
-                id: chapterId,
-                mangaId: mangaId,
-                pages: pages,
-                longStrip: false
-            });
+            return this.setPageToIntercept($, mangaId, chapterId);
         });
     }
     getSearchResults(query, metadata) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            if (!query.title || query.title.length < 3)
-                return createPagedResults({ results: [] });
+            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
+            if (page == -1)
+                return createPagedResults({ results: [], metadata: { page: -1 } });
+            const tokenRequest = createRequestObject({
+                url: `${this.baseUrl}/search`,
+                method: 'GET',
+            });
+            const tokenResponse = yield this.requestManager.schedule(tokenRequest, REQUEST_RETRIES);
+            const $$ = this.cheerio.load(tokenResponse.data);
+            const token = this.parser.parseToken($$);
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/search/${query.title === undefined ? '' : `?searchkey=${encodeURIComponent(query.title)}`}`,
+                url: `${this.baseUrl}/lnsearchlive`,
                 method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'LNRequestVerifyToken': token,
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'Content-Length': '16',
+                    'Referer': 'https://www.lightnovelpub.com/search',
+                },
+                cookies: tokenResponse.request.cookies,
+                data: `inputContent=${(_b = query.title) === null || _b === void 0 ? void 0 : _b.replaceAll(' ', '+')}`
             });
             const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
-            const $ = this.cheerio.load(response.data);
-            const htmlResults = $('div.ss-custom > div').toArray();
-            const results = [];
-            for (const htmlResult of htmlResults) {
-                const a = $('div.pic > a', htmlResult);
-                results.push(createMangaTile({
-                    id: $(a).attr('href').substring(1).split('.')[0],
-                    title: createIconText({ text: $('img', a).attr('title') }),
-                    image: $('img', a).attr('src')
-                }));
+            try {
+                const jsonData = JSON.parse(response.data);
+                const $ = this.cheerio.load(jsonData.resultview);
+                const manga = this.parser.parseSearchResults($);
+                page = -1;
+                return createPagedResults({
+                    results: manga,
+                    metadata: { page: page },
+                });
             }
-            return createPagedResults({ results: results });
+            catch (error) {
+                throw new Error('\n\nRefresh Cloudflare Cookies from the Source Settings\n\n');
+            }
         });
     }
     getHomePageSections(sectionCallback) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/hot`,
+                url: `${this.baseUrl}/hot`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, 2);
@@ -838,7 +851,7 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
         return __awaiter(this, void 0, void 0, function* () {
             const page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
             const request = createRequestObject({
-                url: `${LNPUB_DOMAIN}/${homepageSectionId}/${page}/`,
+                url: `${this.baseUrl}/${homepageSectionId}/${page}/`,
                 method: 'GET'
             });
             const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
@@ -861,7 +874,7 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
         });
     }
     getMangaShareUrl(mangaId) {
-        return `${LNPUB_DOMAIN}/${mangaId}`;
+        return `${this.baseUrl}/${mangaId}`;
     }
     convertTime(timeAgo) {
         var _a;
@@ -884,6 +897,33 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
             time = new Date(timeAgo);
         }
         return time;
+    }
+    getCloudflareBypassRequest() {
+        return createRequestObject({
+            url: `${this.baseUrl}/hot`,
+            method: 'GET',
+        });
+    }
+    setPageToIntercept($, mangaId, chapterId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const pages = [];
+            const textSegments = [];
+            const chapterText = $(TEXT_SELECTOR).toArray();
+            for (const chapterTextSeg of chapterText) {
+                textSegments.push((0, LNInterceptor_1.decodeHTMLEntity)($(chapterTextSeg).text()));
+            }
+            const text = textSegments.join('\n');
+            const lines = Math.ceil((0, LNInterceptor_1.spliterate)(text.replace(/[^\x00-\x7F]/g, ''), (yield (0, settings_1.getImageWidth)(this.stateManager)) - (yield (0, settings_1.getHorizontalPadding)(this.stateManager)) * 2, `${(yield (0, settings_1.getFont)(this.stateManager)).toLowerCase().replace(/ /g, '')}${yield (0, settings_1.getFontSize)(this.stateManager)}`).split.length / (yield (0, settings_1.getLinesPerPage)(this.stateManager)));
+            for (let i = 1; i <= lines; i++) {
+                pages.push(`${this.baseUrl}/novel/${mangaId}/${chapterId}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(yield (0, settings_1.getSettingsString)(this.stateManager))}`);
+            }
+            return createChapterDetails({
+                id: chapterId,
+                mangaId: mangaId,
+                pages: pages,
+                longStrip: false
+            });
+        });
     }
 }
 exports.LightNovelPub = LightNovelPub;
@@ -945,13 +985,13 @@ class Parser {
             const id = (_a = $('a', obj).attr('href').split('/')[3]) !== null && _a !== void 0 ? _a : '';
             const name = (_b = $('a', obj).attr('title')) !== null && _b !== void 0 ? _b : '';
             const chapNum = Number((_c = $(obj).attr('data-chapterno')) !== null && _c !== void 0 ? _c : '0');
-            const time = source.convertTime($('time', obj).attr('datetime'));
+            // const time = source.convertTime($('time', obj).attr('datetime') )
             chapters.push(createChapter({
                 id,
                 mangaId,
                 name,
                 chapNum,
-                time,
+                // time,
                 langCode: paperback_extensions_common_1.LanguageCode.ENGLISH,
             }));
         }
@@ -967,7 +1007,6 @@ class Parser {
             }
             const text = textSegments.join('\n');
             const lines = Math.ceil((0, LNInterceptor_1.spliterate)(text.replace(/[^\x00-\x7F]/g, ''), (yield (0, settings_1.getImageWidth)(source.stateManager)) - (yield (0, settings_1.getHorizontalPadding)(source.stateManager)) * 2, `${(yield (0, settings_1.getFont)(source.stateManager)).toLowerCase().replace(' ', '')}${yield (0, settings_1.getFontSize)(source.stateManager)}`).split.length / (yield (0, settings_1.getLinesPerPage)(source.stateManager)));
-            console.log(`lines: ${lines}`);
             for (let i = 1; i <= lines; i++) {
                 pages.push(`${source.LNPUB_DOMAIN}/novel/${mangaId}/${id}/?ttiparse&ttipage=${i}&ttisettings=${encodeURIComponent(yield (0, settings_1.getSettingsString)(source.stateManager))}`);
             }
@@ -997,8 +1036,8 @@ class Parser {
     parseSearchResults($) {
         var _a, _b, _c, _d;
         const results = [];
-        for (const item of $('.listupd .bsx').toArray()) {
-            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _b !== void 0 ? _b : '';
+        for (const item of $('.novel-list li').toArray()) {
+            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
             const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
             const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
             results.push(createMangaTile({
@@ -1009,11 +1048,15 @@ class Parser {
         }
         return results;
     }
+    parseToken($) {
+        var _a;
+        return (_a = $('#novelSearchForm input[type=hidden]').attr('value')) !== null && _a !== void 0 ? _a : 'notfound';
+    }
     parseViewMore($) {
         var _a, _b, _c, _d;
         const more = [];
         for (const item of $('.listupd .bsx').toArray()) {
-            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _b !== void 0 ? _b : '';
+            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
             const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
             const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
             more.push(createMangaTile({
@@ -1042,7 +1085,6 @@ class Parser {
             const id = (_b = (_a = $('a', obj).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
             const title = (_c = $('h4', obj).text().trim()) !== null && _c !== void 0 ? _c : '';
             const image = (_d = $('img', obj).attr('data-src').replace('158x210', '300x400')) !== null && _d !== void 0 ? _d : '';
-            console.log(`${title} - ${(0, LNInterceptor_1.decodeHTMLEntity)(title)}`);
             rankList.push(createMangaTile({
                 id,
                 image,
@@ -1109,7 +1151,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.settings = exports.getSettingsString = exports.getLinesPerPage = exports.getImageWidth = exports.getVerticalPadding = exports.getHorizontalPadding = exports.getFont = exports.getFontSize = exports.getBackgroundColor = exports.getTextColor = exports.COLORS = exports.SETTINGS = void 0;
+exports.readerSettings = exports.resetSettings = exports.getSettingsString = exports.getLinesPerPage = exports.getImageWidth = exports.getVerticalPadding = exports.getHorizontalPadding = exports.getFont = exports.getFontSize = exports.getBackgroundColor = exports.getTextColor = exports.COLORS = exports.SETTINGS = void 0;
 exports.SETTINGS = {
     textColor: ['White', 'Light Gray', 'Brown', 'Dark Gray', 'Black'],
     backgroundColor: ['White', 'Sepia', 'Dark Gray', 'Black'],
@@ -1168,114 +1210,117 @@ const getSettingsString = (stateManager) => __awaiter(void 0, void 0, void 0, fu
     return `${yield (0, exports.getTextColor)(stateManager)},${yield (0, exports.getBackgroundColor)(stateManager)},${yield (0, exports.getFontSize)(stateManager)},${yield (0, exports.getFont)(stateManager)},${yield (0, exports.getHorizontalPadding)(stateManager)},${yield (0, exports.getVerticalPadding)(stateManager)},${yield (0, exports.getImageWidth)(stateManager)},${yield (0, exports.getLinesPerPage)(stateManager)}`;
 });
 exports.getSettingsString = getSettingsString;
-const settings = (stateManager) => __awaiter(void 0, void 0, void 0, function* () {
-    return Promise.resolve(createSection({
-        id: 'main',
-        header: 'Source Settings',
-        rows: () => __awaiter(void 0, void 0, void 0, function* () {
-            return [
-                createNavigationButton({
-                    label: 'Reader Settings',
-                    value: '',
-                    id: 'reader_settings',
-                    form: createForm({
-                        sections: () => __awaiter(void 0, void 0, void 0, function* () {
+const resetSettings = (stateManager) => {
+    return createButton({
+        id: 'refresh',
+        label: 'Update Source Cookies',
+        value: '',
+        onTap: () => {
+            throw new Error('Updating cookies');
+        }
+    });
+};
+exports.resetSettings = resetSettings;
+const readerSettings = (stateManager) => __awaiter(void 0, void 0, void 0, function* () {
+    return createNavigationButton({
+        label: 'Reader Settings',
+        value: '',
+        id: 'reader_settings',
+        form: createForm({
+            sections: () => __awaiter(void 0, void 0, void 0, function* () {
+                return [
+                    createSection({
+                        id: '',
+                        rows: () => __awaiter(void 0, void 0, void 0, function* () {
                             return [
-                                createSection({
-                                    id: '',
-                                    rows: () => __awaiter(void 0, void 0, void 0, function* () {
-                                        return [
-                                            createSelect({
-                                                label: 'Text Color',
-                                                options: exports.SETTINGS.textColor,
-                                                displayLabel: option => { return option; },
-                                                value: [yield (0, exports.getTextColor)(stateManager)],
-                                                id: 'text_color',
-                                                allowsMultiselect: false
-                                            }),
-                                            createSelect({
-                                                label: 'Background Color',
-                                                options: exports.SETTINGS.backgroundColor,
-                                                displayLabel: option => { return option; },
-                                                value: [yield (0, exports.getBackgroundColor)(stateManager)],
-                                                id: 'background_color',
-                                                allowsMultiselect: false
-                                            }),
-                                            createSelect({
-                                                label: 'Font',
-                                                options: exports.SETTINGS.font,
-                                                displayLabel: option => { return option; },
-                                                value: [yield (0, exports.getFont)(stateManager)],
-                                                id: 'font',
-                                                allowsMultiselect: false
-                                            }),
-                                            createSelect({
-                                                label: 'Font Size',
-                                                options: exports.SETTINGS.fontSize,
-                                                displayLabel: option => { return option; },
-                                                value: [(yield (0, exports.getFontSize)(stateManager)).toString()],
-                                                id: 'font_size',
-                                                allowsMultiselect: false
-                                            }),
-                                            createStepper({
-                                                label: 'Horizontal Padding',
-                                                value: yield (0, exports.getHorizontalPadding)(stateManager),
-                                                id: 'horizontal_padding',
-                                                min: 0,
-                                                max: 100,
-                                                step: 5
-                                            }),
-                                            createStepper({
-                                                label: 'Vertical Padding',
-                                                value: yield (0, exports.getVerticalPadding)(stateManager),
-                                                id: 'vertical_padding',
-                                                min: 0,
-                                                max: 100,
-                                                step: 5
-                                            }),
-                                            createStepper({
-                                                label: 'Image Width',
-                                                value: yield (0, exports.getImageWidth)(stateManager),
-                                                id: 'image_width',
-                                                min: 800,
-                                                max: 1600,
-                                                step: 50
-                                            }),
-                                            createStepper({
-                                                label: 'Lines Per Page',
-                                                value: yield (0, exports.getLinesPerPage)(stateManager),
-                                                id: 'lines_per_page',
-                                                min: 1,
-                                                max: 100,
-                                                step: 1
-                                            })
-                                        ];
-                                    })
+                                createSelect({
+                                    label: 'Text Color',
+                                    options: exports.SETTINGS.textColor,
+                                    displayLabel: option => { return option; },
+                                    value: [yield (0, exports.getTextColor)(stateManager)],
+                                    id: 'text_color',
+                                    allowsMultiselect: false
+                                }),
+                                createSelect({
+                                    label: 'Background Color',
+                                    options: exports.SETTINGS.backgroundColor,
+                                    displayLabel: option => { return option; },
+                                    value: [yield (0, exports.getBackgroundColor)(stateManager)],
+                                    id: 'background_color',
+                                    allowsMultiselect: false
+                                }),
+                                createSelect({
+                                    label: 'Font',
+                                    options: exports.SETTINGS.font,
+                                    displayLabel: option => { return option; },
+                                    value: [yield (0, exports.getFont)(stateManager)],
+                                    id: 'font',
+                                    allowsMultiselect: false
+                                }),
+                                createSelect({
+                                    label: 'Font Size',
+                                    options: exports.SETTINGS.fontSize,
+                                    displayLabel: option => { return option; },
+                                    value: [(yield (0, exports.getFontSize)(stateManager)).toString()],
+                                    id: 'font_size',
+                                    allowsMultiselect: false
+                                }),
+                                createStepper({
+                                    label: 'Horizontal Padding',
+                                    value: yield (0, exports.getHorizontalPadding)(stateManager),
+                                    id: 'horizontal_padding',
+                                    min: 0,
+                                    max: 100,
+                                    step: 5
+                                }),
+                                createStepper({
+                                    label: 'Vertical Padding',
+                                    value: yield (0, exports.getVerticalPadding)(stateManager),
+                                    id: 'vertical_padding',
+                                    min: 0,
+                                    max: 100,
+                                    step: 5
+                                }),
+                                createStepper({
+                                    label: 'Image Width',
+                                    value: yield (0, exports.getImageWidth)(stateManager),
+                                    id: 'image_width',
+                                    min: 800,
+                                    max: 1600,
+                                    step: 50
+                                }),
+                                createStepper({
+                                    label: 'Lines Per Page',
+                                    value: yield (0, exports.getLinesPerPage)(stateManager),
+                                    id: 'lines_per_page',
+                                    min: 1,
+                                    max: 100,
+                                    step: 1
                                 })
                             ];
-                        }),
-                        onSubmit: (values) => __awaiter(void 0, void 0, void 0, function* () {
-                            return Promise.all([
-                                stateManager.store('text_color', values.text_color[0]),
-                                stateManager.store('background_color', values.background_color[0]),
-                                stateManager.store('font_size', values.font_size[0]),
-                                stateManager.store('font', values.font[0]),
-                                stateManager.store('horizontal_padding', values.horizontal_padding),
-                                stateManager.store('vertical_padding', values.vertical_padding),
-                                stateManager.store('image_width', values.image_width),
-                                stateManager.store('lines_per_page', values.lines_per_page)
-                            ]).then();
-                        }),
-                        validate: (values) => __awaiter(void 0, void 0, void 0, function* () {
-                            return true;
                         })
-                    })
-                })
-            ];
+                    }),
+                ];
+            }),
+            onSubmit: (values) => __awaiter(void 0, void 0, void 0, function* () {
+                return Promise.all([
+                    stateManager.store('text_color', values.text_color[0]),
+                    stateManager.store('background_color', values.background_color[0]),
+                    stateManager.store('font_size', values.font_size[0]),
+                    stateManager.store('font', values.font[0]),
+                    stateManager.store('horizontal_padding', values.horizontal_padding),
+                    stateManager.store('vertical_padding', values.vertical_padding),
+                    stateManager.store('image_width', values.image_width),
+                    stateManager.store('lines_per_page', values.lines_per_page)
+                ]).then();
+            }),
+            validate: () => __awaiter(void 0, void 0, void 0, function* () {
+                return true;
+            })
         })
-    }));
+    });
 });
-exports.settings = settings;
+exports.readerSettings = readerSettings;
 
 },{}]},{},[54])(54)
 });
