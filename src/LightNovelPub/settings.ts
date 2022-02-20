@@ -5,6 +5,7 @@ import {
     NavigationButton,
     RequestManager,
     Section,
+    Select,
     SourceStateManager,
 } from 'paperback-extensions-common'
 
@@ -158,6 +159,117 @@ export const readerSettings = async (stateManager: SourceStateManager): Promise<
             },
             validate: async (): Promise<boolean> => {
                 return true
+            }
+        })
+    })
+}
+
+interface HomePageSection {
+    name: string,
+    enum: string,
+    default?: true
+}
+
+class HomePageSectionClass {
+    Sections: HomePageSection[] = [
+        {
+            name: 'Featured',
+            enum: '0',
+            default: true
+        },
+        {
+            name: 'Latest Titles',
+            enum: '1',
+            default: true
+        },
+        {
+            name: 'New Ongoing Releases',
+            enum: '2',
+            default: true
+        },
+        {
+            name: 'Weekly Most Active',
+            enum: '3',
+            default: true
+        },
+        {
+            name: 'Most Read',
+            enum: '4',
+            default: true
+        },
+        {
+            name: 'Most Trends',
+            enum: '5',
+            default: true
+        },
+        {
+            name: 'User Rated',
+            enum: '6',
+            default: true
+        },
+        {
+            name: 'Completed Series',
+            enum: '7',
+            default: true
+        },
+    ]
+    getEnumList(): string[] {
+        return this.Sections.map(Sections => Sections.enum)
+    }
+
+    getName(sectionsEnum: string): string {
+        return this.Sections.filter(Sections => Sections.enum == sectionsEnum)[0]?.name ?? ''
+    }
+
+    getDefault(): string[] {
+        return this.Sections.filter(Sections => Sections.default).map(Sections => Sections.enum)
+    }
+}
+export const HomePageSections = new HomePageSectionClass()
+
+export const getEnabledHomePageSections = async (stateManager: SourceStateManager): Promise<string[]> => {
+    const enabled_homepage_sections: string[] = await stateManager.retrieve('enabled_homepage_sections') as string[]
+    return enabled_homepage_sections != undefined && enabled_homepage_sections.length > 0 ? enabled_homepage_sections : HomePageSections.getDefault()
+}
+
+export const homeSections = (stateManager: SourceStateManager): NavigationButton => {
+    return createNavigationButton({
+        id: 'homepage_settings',
+        value: '',
+        label: 'Homepage Settings',
+        form: createForm({
+            onSubmit: (values: any) => {
+                return Promise.all([
+                    stateManager.store('enabled_homepage_sections', values.enabled_homepage_sections),
+                ]).then()
+            },
+            validate: () => {
+                return Promise.resolve(true)
+            },
+            sections: () => {
+                return Promise.resolve([
+                    createSection({
+                        id: 'homepage_sections_section',
+                        footer: 'Note: Select the sections you would like to display on the home page.\nMINIMUM 1 SECTION MUST BE SELECTED',
+                        rows: () => {
+                            return Promise.all([
+                                getEnabledHomePageSections(stateManager),
+                            ]).then(async values => {
+                                return [
+                                    createSelect({
+                                        id: 'enabled_homepage_sections',
+                                        label: 'Homepage sections',
+                                        options: HomePageSections.getEnumList(),
+                                        displayLabel: option => HomePageSections.getName(option),
+                                        value: values[0] ?? [],
+                                        allowsMultiselect: true,
+                                        minimumOptionCount: 0,
+                                    }),
+                                ]
+                            })
+                        }
+                    }),
+                ])
             }
         })
     })
