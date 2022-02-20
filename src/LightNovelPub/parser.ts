@@ -179,10 +179,11 @@ export class Parser {
 
     parseViewMore($: any): MangaTile[] {
         const more: MangaTile[] = []
-        for (const item of $('.novel-list li').toArray()) {
-            const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
-            const title = $('a', item).attr('title') ?? ''
-            const image = $('img', item).attr('data-src') ?? ''
+        for (const obj of $('.novel-list li').toArray()) {
+            const id    = $('a', obj).attr('href')?.split('/')[2] ?? ''
+            let title = $('a', obj).attr('title') ?? ''
+            if (title.includes('Chapter')) title = $('.novel-title', obj).text().trim() ?? ''
+            const image = $('img', obj).attr('data-src') ?? ''
             more.push(
                 createMangaTile({
                     id,
@@ -196,10 +197,10 @@ export class Parser {
 
     parseHomeSections($: any, enabled_homepage_sections: string[], sectionCallback: (section: HomeSection) => void): void {
         const section0 = createHomeSection({ id: '0', title: 'Featured',            type: HomeSectionType.featured,})
-        const section1 = createHomeSection({ id: '1', title: 'Latest Novels',       type: HomeSectionType.singleRowNormal,})
+        const section1 = createHomeSection({ id: '1', title: 'Latest Novels',       type: HomeSectionType.singleRowNormal, view_more: true,})
         const section2 = createHomeSection({ id: '2', title: 'New Ongoing Releases',type: HomeSectionType.singleRowNormal, view_more: true,})
         const section3 = createHomeSection({ id: '3', title: 'Weekly Most Active',  type: HomeSectionType.singleRowNormal,})
-        const section4 = createHomeSection({ id: '4', title: 'Most Read Novels',    type: HomeSectionType.singleRowNormal,})
+        const section4 = createHomeSection({ id: '4', title: 'Most Read Novels',    type: HomeSectionType.singleRowNormal, view_more: true,})
         const section5 = createHomeSection({ id: '5', title: 'New Trending Novels', type: HomeSectionType.singleRowNormal,})
         const section6 = createHomeSection({ id: '6', title: 'User Rated Novels',   type: HomeSectionType.singleRowNormal,})
         const section7 = createHomeSection({ id: '7', title: 'Completed Stories',   type: HomeSectionType.singleRowNormal, view_more: true,})

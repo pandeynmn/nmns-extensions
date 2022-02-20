@@ -41,7 +41,7 @@ const TEXT_SELECTOR   = '#chapter-container > p'
 const REQUEST_RETRIES = 5
 
 export const LightNovelPubInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'LightNovelPub',
     description: 'Extension that pulls manga from LightNovelPub.',
     author: 'NmN',
@@ -190,7 +190,9 @@ export class LightNovelPub extends Source {
         let page = metadata?.page ?? 1
         if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
         let url = ''
+        if (homepageSectionId == '1') url = `${this.baseUrl}/latest-updates?p=${page}`
         if (homepageSectionId == '2') url = `${this.baseUrl}/genre/all/new/all/${page}`
+        if (homepageSectionId == '4') url = `${this.baseUrl}/genre/all/popular/all/${page}`
         if (homepageSectionId == '7') url = `${this.baseUrl}/genre/all/popular/completed/${page}`
         const request = createRequestObject({
             url,
