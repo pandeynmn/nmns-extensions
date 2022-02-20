@@ -9598,7 +9598,7 @@ const LNPUB_DOMAIN = 'https://www.lightnovelpub.com';
 const TEXT_SELECTOR = '#chapter-container > p';
 const REQUEST_RETRIES = 5;
 exports.LightNovelPubInfo = {
-    version: '0.0.1',
+    version: '1.0.0',
     name: 'LightNovelPub',
     description: 'Extension that pulls manga from LightNovelPub.',
     author: 'NmN',
@@ -9614,6 +9614,10 @@ exports.LightNovelPubInfo = {
         {
             text: 'Light Novel',
             type: paperback_extensions_common_1.TagType.BLUE,
+        },
+        {
+            text: 'Experimental',
+            type: paperback_extensions_common_1.TagType.YELLOW,
         },
     ],
 };
