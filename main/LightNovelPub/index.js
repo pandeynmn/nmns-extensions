@@ -12188,7 +12188,7 @@ const LNPUB_DOMAIN = 'https://www.lightnovelpub.com';
 const TEXT_SELECTOR = '#chapter-container > p';
 const REQUEST_RETRIES = 5;
 exports.LightNovelPubInfo = {
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'LightNovelPub',
     description: 'Extension that pulls manga from LightNovelPub.',
     author: 'NmN',
@@ -12343,8 +12343,12 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
             if (page == -1)
                 return createPagedResults({ results: [], metadata: { page: -1 } });
             let url = '';
+            if (homepageSectionId == '1')
+                url = `${this.baseUrl}/latest-updates?p=${page}`;
             if (homepageSectionId == '2')
                 url = `${this.baseUrl}/genre/all/new/all/${page}`;
+            if (homepageSectionId == '4')
+                url = `${this.baseUrl}/genre/all/popular/all/${page}`;
             if (homepageSectionId == '7')
                 url = `${this.baseUrl}/genre/all/popular/completed/${page}`;
             const request = createRequestObject({
@@ -12584,12 +12588,14 @@ class Parser {
         return (_a = $('#novelSearchForm input[type=hidden]').attr('value')) !== null && _a !== void 0 ? _a : null;
     }
     parseViewMore($) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         const more = [];
-        for (const item of $('.novel-list li').toArray()) {
-            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
-            const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = $('img', item).attr('data-src')) !== null && _d !== void 0 ? _d : '';
+        for (const obj of $('.novel-list li').toArray()) {
+            const id = (_b = (_a = $('a', obj).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
+            let title = (_c = $('a', obj).attr('title')) !== null && _c !== void 0 ? _c : '';
+            if (title.includes('Chapter'))
+                title = (_d = $('.novel-title', obj).text().trim()) !== null && _d !== void 0 ? _d : '';
+            const image = (_e = $('img', obj).attr('data-src')) !== null && _e !== void 0 ? _e : '';
             more.push(createMangaTile({
                 id,
                 image,
@@ -12601,10 +12607,10 @@ class Parser {
     parseHomeSections($, enabled_homepage_sections, sectionCallback) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: paperback_extensions_common_1.HomeSectionType.featured, });
-        const section1 = createHomeSection({ id: '1', title: 'Latest Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const section1 = createHomeSection({ id: '1', title: 'Latest Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section2 = createHomeSection({ id: '2', title: 'New Ongoing Releases', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section3 = createHomeSection({ id: '3', title: 'Weekly Most Active', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
-        const section4 = createHomeSection({ id: '4', title: 'Most Read Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
+        const section4 = createHomeSection({ id: '4', title: 'Most Read Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section5 = createHomeSection({ id: '5', title: 'New Trending Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
         const section6 = createHomeSection({ id: '6', title: 'User Rated Novels', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
         const section7 = createHomeSection({ id: '7', title: 'Completed Stories', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
