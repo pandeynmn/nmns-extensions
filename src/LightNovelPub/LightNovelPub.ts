@@ -32,11 +32,13 @@ import { COLORS,
     getHorizontalPadding,
     getVerticalPadding,
     getSettingsString,
-    readerSettings } from './settings'
+    readerSettings,
+    homeSections,
+    getEnabledHomePageSections} from './settings'
 
 const LNPUB_DOMAIN    = 'https://www.lightnovelpub.com'
-const REQUEST_RETRIES = 5
 const TEXT_SELECTOR   = '#chapter-container > p'
+const REQUEST_RETRIES = 5
 
 export const LightNovelPubInfo: SourceInfo = {
     version: '0.0.1',
@@ -44,7 +46,7 @@ export const LightNovelPubInfo: SourceInfo = {
     description: 'Extension that pulls manga from LightNovelPub.',
     author: 'NmN',
     authorWebsite: 'http://github.com/pandeynmm',
-    icon: 'icon.jpg',
+    icon: 'icon.webp',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: LNPUB_DOMAIN,
     sourceTags: [
@@ -88,12 +90,17 @@ export class LightNovelPub extends Source {
         }
     })
 
+    override getMangaShareUrl(mangaId: string): string {
+        return `${this.baseUrl}/novel/${mangaId}`
+    }
+
     override async getSourceMenu(): Promise<Section> {
         return Promise.resolve(createSection({
             id: 'main',
             header: 'Source Settings',
             rows: async () => [
                 await readerSettings(this.stateManager),
+                await homeSections(this.stateManager),
             ]
         }))
     }
@@ -106,16 +113,11 @@ export class LightNovelPub extends Source {
         const $ = this.cheerio.load(response.data)
         return this.parser.parseMangaDetails($, mangaId)
     }
-    async getChapters(mangaId: string): Promise<Chapter[]> {
-        const request = createRequestObject({
-            url: `${this.baseUrl}/novel/${mangaId}/chapters`,
-            method: 'GET',
-        })
-        const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
-        const $ = this.cheerio.load(response.data)
-        return this.parser.parseChapters($, mangaId, this)
 
+    async getChapters(mangaId: string): Promise<Chapter[]> {
+        return this.parser._getChapters(mangaId, this)
     }
+
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const request = createRequestObject({
             url: `${this.baseUrl}/novel/${mangaId}/${chapterId}`,
@@ -139,6 +141,8 @@ export class LightNovelPub extends Source {
         const $$ = this.cheerio.load(tokenResponse.data)
         const token = this.parser.parseToken($$)
 
+        if (!token) throw new Error('\n\nError: Search token absent. Restart the app.\nIf nothing works, Open a support thread in discord.\n\n')
+
         const request = createRequestObject({
             url: `${this.baseUrl}/lnsearchlive`,
             method: 'POST',
@@ -153,24 +157,20 @@ export class LightNovelPub extends Source {
             },
             cookies: tokenResponse.request.cookies,
             data: `inputContent=${query.title?.replaceAll(' ', '+')}`
-
         })
 
         const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
-        try {
-            const jsonData = JSON.parse(response.data)
-            const $ = this.cheerio.load(jsonData.resultview)
-            const manga = this.parser.parseSearchResults($)
+        const jsonData = JSON.parse(response.data)
+        const $ = this.cheerio.load(jsonData.resultview)
+        const manga = this.parser.parseSearchResults($)
 
-            page = -1
-            return createPagedResults({
-                results: manga,
-                metadata: { page: page },
-            })
-        } catch (error) {
-            throw new Error('\n\nRefresh Cloudflare Cookies from the Source Settings\n\n')
-        }
+        page = -1
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
+        })
     }
+
     override async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const request = createRequestObject({
             url: `${this.baseUrl}/hot`,
@@ -178,8 +178,10 @@ export class LightNovelPub extends Source {
         })
         const response = await this.requestManager.schedule(request, 2)
         const $ = this.cheerio.load(response.data)
-        this.parser.parseHomeSections($, sectionCallback)
+        const enabledSections = await getEnabledHomePageSections(this.stateManager)
+        this.parser.parseHomeSections($, enabledSections, sectionCallback)
     }
+
     override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const page = metadata?.page ?? 1
         const request = createRequestObject({
@@ -204,9 +206,6 @@ export class LightNovelPub extends Source {
             metadata: lastPage ? undefined : {page: page + 1}
         })
     }
-    override getMangaShareUrl(mangaId: string): string {
-        return `${this.baseUrl}/${mangaId}`
-    }
 
     protected convertTime(timeAgo: string): Date {
         let time: Date
@@ -214,10 +213,12 @@ export class LightNovelPub extends Source {
         trimmed = trimmed == 0 && timeAgo.includes('a') ? 1 : trimmed
         if (timeAgo.includes('mins') || timeAgo.includes('minutes') || timeAgo.includes('minute')) {
             time = new Date(Date.now() - trimmed * 60000)
-        } else if (timeAgo.includes('hours') || timeAgo.includes('hour')) {
+        } else if (timeAgo.includes('hour') || timeAgo.includes('hours')) {
             time = new Date(Date.now() - trimmed * 3600000)
-        } else if (timeAgo.includes('days') || timeAgo.includes('day')) {
+        } else if (timeAgo.includes('day') || timeAgo.includes('days')) {
             time = new Date(Date.now() - trimmed * 86400000)
+        } else if (timeAgo.includes('month') || timeAgo.includes('months')) {
+            time = new Date(Date.now() - trimmed * 2629800000)
         } else if (timeAgo.includes('year') || timeAgo.includes('years')) {
             time = new Date(Date.now() - trimmed * 31556952000)
         } else {
