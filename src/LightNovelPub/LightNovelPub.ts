@@ -234,7 +234,7 @@ export class LightNovelPub extends Source {
         })
     }
 
-    private async setPageToIntercept($: CheerioStatic, mangaId: string, chapterId: string) {
+    private async setPageToIntercept($: any, mangaId: string, chapterId: string) {
         const pages: string[] = []
         const textSegments: string[] = []
         const chapterText = $(TEXT_SELECTOR).toArray()
