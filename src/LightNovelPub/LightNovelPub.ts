@@ -41,7 +41,7 @@ const TEXT_SELECTOR   = '#chapter-container > p'
 const REQUEST_RETRIES = 5
 
 export const LightNovelPubInfo: SourceInfo = {
-    version: '0.0.1',
+    version: '1.0.0',
     name: 'LightNovelPub',
     description: 'Extension that pulls manga from LightNovelPub.',
     author: 'NmN',
@@ -57,6 +57,10 @@ export const LightNovelPubInfo: SourceInfo = {
         {
             text: 'Light Novel',
             type: TagType.BLUE,
+        },
+        {
+            text: 'Experimental',
+            type: TagType.YELLOW,
         },
     ],
 }

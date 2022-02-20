@@ -10,26 +10,22 @@ import {
     Tag,
     TagSection,
 } from 'paperback-extensions-common'
+
 import { decodeHTMLEntity,
     spliterate } from '../LNInterceptor'
 
-import { COLORS,
-    getBackgroundColor,
+import {
     getFont,
-    getTextColor,
-    settings,
     getFontSize,
     getImageWidth,
     getLinesPerPage,
     getHorizontalPadding,
-    getVerticalPadding,
-    getSettingsString,
-    getEnabledHomePageSections} from './settings'
+    getSettingsString,} from './settings'
 
 import { convert } from 'html-to-text'
 
 export class Parser {
-    parseMangaDetails($: CheerioStatic, mangaId: string): Manga {
+    parseMangaDetails($: any, mangaId: string): Manga {
         const title  = $('.novel-info h1.novel-title').text().trim() ?? ''
         const image  = $('.cover img').attr('data-src') ?? ''
         const desc   = $('.summary .content').text().trim() ?? ''
@@ -103,7 +99,7 @@ export class Parser {
         return chapters
     }
 
-    parseChapters($: CheerioStatic, mangaId: string, source: any): Chapter[] {
+    parseChapters($: any, mangaId: string, source: any): Chapter[] {
         const chapters: Chapter[] = []
         const arrChapters = $('.chapter-list li').toArray().reverse()
         for (const obj of arrChapters) {
@@ -126,7 +122,7 @@ export class Parser {
         return chapters
     }
 
-    async parseChapterDetails($: CheerioStatic, mangaId: string, id: string, source: any): Promise<ChapterDetails> {
+    async parseChapterDetails($: any, mangaId: string, id: string, source: any): Promise<ChapterDetails> {
         const pages: string[] = []
         const textSegments: string[] = []
         const chapterText = $('#chapter-container > p').toArray()
@@ -177,11 +173,11 @@ export class Parser {
         return results
     }
 
-    parseToken($: CheerioStatic): string {
+    parseToken($: any): string {
         return $('#novelSearchForm input[type=hidden]').attr('value') ?? null
     }
 
-    parseViewMore($: CheerioStatic): MangaTile[] {
+    parseViewMore($: any): MangaTile[] {
         const more: MangaTile[] = []
         for (const item of $('.novel-list li').toArray()) {
             const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
@@ -198,7 +194,7 @@ export class Parser {
         return more
     }
 
-    parseHomeSections($: CheerioStatic, enabled_homepage_sections: string[], sectionCallback: (section: HomeSection) => void): void {
+    parseHomeSections($: any, enabled_homepage_sections: string[], sectionCallback: (section: HomeSection) => void): void {
         const section0 = createHomeSection({ id: '0', title: 'Featured',            type: HomeSectionType.featured,})
         const section1 = createHomeSection({ id: '1', title: 'Latest Novels',       type: HomeSectionType.singleRowNormal,})
         const section2 = createHomeSection({ id: '2', title: 'New Ongoing Releases',type: HomeSectionType.singleRowNormal, view_more: true,})
