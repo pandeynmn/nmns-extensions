@@ -183,27 +183,26 @@ export class LightNovelPub extends Source {
     }
 
     override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
-        const page = metadata?.page ?? 1
+        let page = metadata?.page ?? 1
+        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+        let url = ''
+        if (homepageSectionId == '2') url = `${this.baseUrl}/genre/all/new/all/${page}`
+        if (homepageSectionId == '7') url = `${this.baseUrl}/genre/all/popular/completed/${page}`
         const request = createRequestObject({
-            url: `${this.baseUrl}/${homepageSectionId}/${page}/`,
+            url,
             method: 'GET'
         })
-        const response = await this.requestManager.schedule(request, REQUEST_RETRIES)
+
+        const response = await this.requestManager.schedule(request, 1)
         const $ = this.cheerio.load(response.data)
-        const lastPage = parseInt($('div.pages > ul > li').children('a').last().text()) === page
-        const htmlResults = $('div.ss-custom > div').toArray()
-        const results: MangaTile[] = []
-        for(const htmlResult of htmlResults) {
-            const a = $('div.pic > a', htmlResult)
-            results.push(createMangaTile({
-                id: $(a).attr('href').substring(1).split('.')[0],
-                title: createIconText({ text: $('img', a).attr('title')}),
-                image: $('img', a).attr('src')
-            }))
-        }
+        const manga: MangaTile[] = this.parser.parseViewMore($)
+
+        page++
+        if (manga.length < 1) page = -1
+
         return createPagedResults({
-            results: results,
-            metadata: lastPage ? undefined : {page: page + 1}
+            results: manga,
+            metadata: { page: page },
         })
     }
 

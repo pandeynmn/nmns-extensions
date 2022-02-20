@@ -30,7 +30,7 @@ import { convert } from 'html-to-text'
 
 export class Parser {
     parseMangaDetails($: CheerioStatic, mangaId: string): Manga {
-        const title  = convert(($('.novel-info h1.novel-title').text().trim() ?? ''), { wordwrap: 130 })
+        const title  = $('.novel-info h1.novel-title').text().trim() ?? ''
         const image  = $('.cover img').attr('data-src') ?? ''
         const desc   = $('.summary .content').text().trim() ?? ''
         const rating = Number($('div.extra-info div.mobile-rt div.numscore').html() ?? '0')
@@ -51,14 +51,14 @@ export class Parser {
 
         return createManga({
             id: mangaId,
-            titles: [this.encodeText(title)],
+            titles: [this.converter(title)],
             image,
             rating,
             status,
             author,
             artist: '-',
             tags: tagSections,
-            desc: this.encodeText(desc),
+            desc: this.converter(desc),
         })
     }
 
@@ -77,11 +77,10 @@ export class Parser {
             maxx = 1
         }
         else if (arrPages.length == 6) {
-            const lastPageLink = convert($(arrPages[5]).find('a').attr('href'), {
-                wordwrap: 130
-            })
+            const lastPage = $(arrPages[5]).find('a').attr('href') ?? ''
+            const lastPageLink = this.converter(lastPage)
             const arr = lastPageLink.split('-')
-            maxx = arr[arr.length - 1]
+            maxx = Number(arr[arr.length - 1])
         } else {
             maxx = arrPages.length - 1
         }
@@ -109,8 +108,7 @@ export class Parser {
         const arrChapters = $('.chapter-list li').toArray().reverse()
         for (const obj of arrChapters) {
             const id   = $('a', obj).attr('href').split('/')[3] ?? ''
-
-            const name = convert(($('a', obj).attr('title') ?? ''), { wordwrap: 130 })
+            const name = $('a', obj).attr('title') ?? ''
             const chapNum = Number($(obj).attr('data-chapterno') ?? '-1')
 
             const time = source.convertTime($('time', obj).text())
@@ -118,7 +116,7 @@ export class Parser {
                 createChapter({
                     id,
                     mangaId,
-                    name,
+                    name: this.converter(name),
                     chapNum,
                     time,
                     langCode: LanguageCode.ENGLISH,
@@ -166,14 +164,13 @@ export class Parser {
 
         for (const item of $('.novel-list li').toArray()) {
             const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
-            const title = convert(($('a', item).attr('title') ?? ''), { wordwrap: 130 })
-
+            const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             results.push(
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -186,15 +183,15 @@ export class Parser {
 
     parseViewMore($: CheerioStatic): MangaTile[] {
         const more: MangaTile[] = []
-        for (const item of $('.listupd .bsx').toArray()) {
+        for (const item of $('.novel-list li').toArray()) {
             const id    = $('a', item).attr('href')?.split('/')[2] ?? ''
             const title = $('a', item).attr('title') ?? ''
-            const image = $('img', item).attr('src') ?? ''
+            const image = $('img', item).attr('data-src') ?? ''
             more.push(
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -237,7 +234,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -252,7 +249,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -267,7 +264,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -282,7 +279,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -297,7 +294,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -312,7 +309,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -327,7 +324,7 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
@@ -342,11 +339,16 @@ export class Parser {
                 createMangaTile({
                     id,
                     image,
-                    title: createIconText({ text: convert((title), { wordwrap: 130 })}),
+                    title: createIconText({ text: this.converter(title), icon: 'book' }),
                 })
             )
         }
         section7.items = completed
         if (enabled_homepage_sections.includes('7')) sectionCallback(section7)
+    }
+
+
+    converter(str: string): string {
+        return convert((str), { wordwrap: 130 }) ?? ''
     }
 }
