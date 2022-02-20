@@ -12335,27 +12335,27 @@ class LightNovelPub extends paperback_extensions_common_1.Source {
     getViewMoreItems(homepageSectionId, metadata) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
+            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
+            if (page == -1)
+                return createPagedResults({ results: [], metadata: { page: -1 } });
+            let url = '';
+            if (homepageSectionId == '2')
+                url = `${this.baseUrl}/genre/all/new/all/${page}`;
+            if (homepageSectionId == '7')
+                url = `${this.baseUrl}/genre/all/popular/completed/${page}`;
             const request = createRequestObject({
-                url: `${this.baseUrl}/${homepageSectionId}/${page}/`,
+                url,
                 method: 'GET'
             });
-            const response = yield this.requestManager.schedule(request, REQUEST_RETRIES);
+            const response = yield this.requestManager.schedule(request, 1);
             const $ = this.cheerio.load(response.data);
-            const lastPage = parseInt($('div.pages > ul > li').children('a').last().text()) === page;
-            const htmlResults = $('div.ss-custom > div').toArray();
-            const results = [];
-            for (const htmlResult of htmlResults) {
-                const a = $('div.pic > a', htmlResult);
-                results.push(createMangaTile({
-                    id: $(a).attr('href').substring(1).split('.')[0],
-                    title: createIconText({ text: $('img', a).attr('title') }),
-                    image: $('img', a).attr('src')
-                }));
-            }
+            const manga = this.parser.parseViewMore($);
+            page++;
+            if (manga.length < 1)
+                page = -1;
             return createPagedResults({
-                results: results,
-                metadata: lastPage ? undefined : { page: page + 1 }
+                results: manga,
+                metadata: { page: page },
             });
         });
     }
@@ -12434,7 +12434,7 @@ const html_to_text_1 = require("html-to-text");
 class Parser {
     parseMangaDetails($, mangaId) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-        const title = (0, html_to_text_1.convert)(((_a = $('.novel-info h1.novel-title').text().trim()) !== null && _a !== void 0 ? _a : ''), { wordwrap: 130 });
+        const title = (_a = $('.novel-info h1.novel-title').text().trim()) !== null && _a !== void 0 ? _a : '';
         const image = (_b = $('.cover img').attr('data-src')) !== null && _b !== void 0 ? _b : '';
         const desc = (_c = $('.summary .content').text().trim()) !== null && _c !== void 0 ? _c : '';
         const rating = Number((_d = $('div.extra-info div.mobile-rt div.numscore').html()) !== null && _d !== void 0 ? _d : '0');
@@ -12454,17 +12454,18 @@ class Parser {
         const tagSections = [createTagSection({ id: '0', label: 'genres', tags: arrayTags.map((x) => createTag(x)) })];
         return createManga({
             id: mangaId,
-            titles: [this.encodeText(title)],
+            titles: [this.converter(title)],
             image,
             rating,
             status,
             author,
             artist: '-',
             tags: tagSections,
-            desc: this.encodeText(desc),
+            desc: this.converter(desc),
         });
     }
     _getChapters(mangaId, source) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
                 url: `${source.baseUrl}/novel/${mangaId}/chapters`,
@@ -12478,11 +12479,10 @@ class Parser {
                 maxx = 1;
             }
             else if (arrPages.length == 6) {
-                const lastPageLink = (0, html_to_text_1.convert)($(arrPages[5]).find('a').attr('href'), {
-                    wordwrap: 130
-                });
+                const lastPage = (_a = $(arrPages[5]).find('a').attr('href')) !== null && _a !== void 0 ? _a : '';
+                const lastPageLink = this.converter(lastPage);
                 const arr = lastPageLink.split('-');
-                maxx = arr[arr.length - 1];
+                maxx = Number(arr[arr.length - 1]);
             }
             else {
                 maxx = arrPages.length - 1;
@@ -12510,13 +12510,13 @@ class Parser {
         const arrChapters = $('.chapter-list li').toArray().reverse();
         for (const obj of arrChapters) {
             const id = (_a = $('a', obj).attr('href').split('/')[3]) !== null && _a !== void 0 ? _a : '';
-            const name = (0, html_to_text_1.convert)(((_b = $('a', obj).attr('title')) !== null && _b !== void 0 ? _b : ''), { wordwrap: 130 });
+            const name = (_b = $('a', obj).attr('title')) !== null && _b !== void 0 ? _b : '';
             const chapNum = Number((_c = $(obj).attr('data-chapterno')) !== null && _c !== void 0 ? _c : '-1');
             const time = source.convertTime($('time', obj).text());
             chapters.push(createChapter({
                 id,
                 mangaId,
-                name,
+                name: this.converter(name),
                 chapNum,
                 time,
                 langCode: paperback_extensions_common_1.LanguageCode.ENGLISH,
@@ -12565,12 +12565,12 @@ class Parser {
         const results = [];
         for (const item of $('.novel-list li').toArray()) {
             const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
-            const title = (0, html_to_text_1.convert)(((_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : ''), { wordwrap: 130 });
+            const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
             const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
             results.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: this.encodeText(title) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         return results;
@@ -12582,14 +12582,14 @@ class Parser {
     parseViewMore($) {
         var _a, _b, _c, _d;
         const more = [];
-        for (const item of $('.listupd .bsx').toArray()) {
+        for (const item of $('.novel-list li').toArray()) {
             const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[2]) !== null && _b !== void 0 ? _b : '';
             const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
+            const image = (_d = $('img', item).attr('data-src')) !== null && _d !== void 0 ? _d : '';
             more.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: this.encodeText(title) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         return more;
@@ -12627,7 +12627,7 @@ class Parser {
             rankList.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section0.items = rankList;
@@ -12640,7 +12640,7 @@ class Parser {
             latest.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section1.items = latest;
@@ -12653,7 +12653,7 @@ class Parser {
             newOngoing.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section2.items = newOngoing;
@@ -12666,7 +12666,7 @@ class Parser {
             weekly.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section3.items = weekly;
@@ -12679,7 +12679,7 @@ class Parser {
             mostRead.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section4.items = mostRead;
@@ -12692,7 +12692,7 @@ class Parser {
             newTrends.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section5.items = newTrends;
@@ -12705,7 +12705,7 @@ class Parser {
             userRated.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section6.items = userRated;
@@ -12718,12 +12718,16 @@ class Parser {
             completed.push(createMangaTile({
                 id,
                 image,
-                title: createIconText({ text: (0, html_to_text_1.convert)((title), { wordwrap: 130 }) }),
+                title: createIconText({ text: this.converter(title), icon: 'book' }),
             }));
         }
         section7.items = completed;
         if (enabled_homepage_sections.includes('7'))
             sectionCallback(section7);
+    }
+    converter(str) {
+        var _a;
+        return (_a = (0, html_to_text_1.convert)((str), { wordwrap: 130 })) !== null && _a !== void 0 ? _a : '';
     }
 }
 exports.Parser = Parser;
