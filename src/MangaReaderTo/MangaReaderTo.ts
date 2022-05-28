@@ -171,30 +171,4 @@ export class MangaReaderTo extends Source {
             metadata: { page: page },
         })
     }
-
-    /**
-     * Parses a time string from a Madara source into a Date object.
-     * Copied from Madara.ts made by gamefuzzy
-     */
-    protected convertTime(timeAgo: string): Date {
-        let time: Date
-        let trimmed = Number((/\d*/.exec(timeAgo) ?? [])[0])
-        trimmed = trimmed == 0 && timeAgo.includes('a') ? 1 : trimmed
-        if (timeAgo.includes('mins') || timeAgo.includes('minutes') || timeAgo.includes('minute')) {
-            time = new Date(Date.now() - trimmed * 60000)
-        } else if (timeAgo.includes('hours') || timeAgo.includes('hour')) {
-            time = new Date(Date.now() - trimmed * 3600000)
-        } else if (timeAgo.includes('days') || timeAgo.includes('day')) {
-            time = new Date(Date.now() - trimmed * 86400000)
-        } else if (timeAgo.includes('year') || timeAgo.includes('years')) {
-            time = new Date(Date.now() - trimmed * 31556952000)
-        } else {
-            time = new Date(timeAgo)
-        }
-
-        return time
-    }
 }
-
-
-// npm i paperback-extensions-common@5.0.0-alpha.5 paperback-cli@2.0.0-alpha.13
