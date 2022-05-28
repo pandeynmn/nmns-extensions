@@ -2982,7 +2982,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const FS_DOMAIN = 'https://flamescans.org';
 exports.FlameScansInfo = {
-    version: '2.0.1',
+    version: '2.0.2',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -3002,8 +3002,9 @@ class FlameScans extends paperback_extensions_common_1.Source {
         super(...arguments);
         this.requestManager = createRequestManager({
             requestsPerSecond: 3,
+            requestTimeout: 8000,
         });
-        this.TIMEOUT = 12;
+        this.RETRY = 5;
         this.parser = new parser_1.Parser();
         // addTags(query: SearchRequest): string {
         //     let tag_str = ''
@@ -3031,7 +3032,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: `${FS_DOMAIN}/series/${mangaId}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseMangaDetails($, mangaId);
         });
@@ -3042,7 +3043,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: `${FS_DOMAIN}/series/${mangaId}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapters($, mangaId, this);
         });
@@ -3053,7 +3054,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: chapterId,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapterDetails($, mangaId, chapterId);
         });
@@ -3071,7 +3072,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 method: 'GET',
                 param,
             });
-            const data = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const data = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(data.data);
             const manga = this.parser.parseSearchResults($);
             page++;
@@ -3089,7 +3090,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: `${FS_DOMAIN}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             this.parser.parseHomeSections($, sectionCallback);
         });
@@ -3109,7 +3110,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, this.TIMEOUT);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             const manga = this.parser.parseViewMore($);
             page++;
