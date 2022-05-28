@@ -32078,7 +32078,7 @@ class Parser {
         var _a, _b, _c, _d, _e;
         const chapters = [];
         const langArr = $('.chapters-list-ul ul').toArray();
-        console.log(`Lang Array: ${langs.toString()}`);
+        // console.log(`Lang Array: ${langs.toString()}`)
         for (const obj of langArr) {
             const lang = (_a = $(obj).attr('id')) !== null && _a !== void 0 ? _a : '';
             console.log('ID : ' + lang);
