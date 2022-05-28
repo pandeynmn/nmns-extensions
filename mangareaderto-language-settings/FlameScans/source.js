@@ -392,7 +392,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const FS_DOMAIN = 'https://flamescans.org';
 exports.FlameScansInfo = {
-    version: '2.0.0',
+    version: '2.0.2',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -412,7 +412,9 @@ class FlameScans extends paperback_extensions_common_1.Source {
         super(...arguments);
         this.requestManager = createRequestManager({
             requestsPerSecond: 3,
+            requestTimeout: 8000,
         });
+        this.RETRY = 5;
         this.parser = new parser_1.Parser();
         // addTags(query: SearchRequest): string {
         //     let tag_str = ''
@@ -440,7 +442,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: `${FS_DOMAIN}/series/${mangaId}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, 3);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseMangaDetails($, mangaId);
         });
@@ -448,10 +450,10 @@ class FlameScans extends paperback_extensions_common_1.Source {
     getChapters(mangaId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${FS_DOMAIN}/comic/${mangaId}`,
+                url: `${FS_DOMAIN}/series/${mangaId}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, 3);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapters($, mangaId, this);
         });
@@ -462,23 +464,11 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: chapterId,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, 3);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapterDetails($, mangaId, chapterId);
         });
     }
-    // override async getTags(): Promise<TagSection[]> {
-    //     const request = createRequestObject({
-    //         url: `${FS_DOMAIN}/search`,
-    //         method: 'GET',
-    //     })
-    //     const response = await this.requestManager.schedule(request, 1)
-    //     const $ = this.cheerio.load(response.data)
-    //     return this.parser.parseTags($)
-    // }
-    // override async supportsTagExclusion(): Promise<boolean> {
-    //     return true
-    // }
     getSearchResults(query, metadata) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
@@ -492,7 +482,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 method: 'GET',
                 param,
             });
-            const data = yield this.requestManager.schedule(request, 2);
+            const data = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(data.data);
             const manga = this.parser.parseSearchResults($);
             page++;
@@ -510,7 +500,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url: `${FS_DOMAIN}`,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, 2);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             this.parser.parseHomeSections($, sectionCallback);
         });
@@ -530,7 +520,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 url,
                 method: 'GET',
             });
-            const response = yield this.requestManager.schedule(request, 1);
+            const response = yield this.requestManager.schedule(request, this.RETRY);
             const $ = this.cheerio.load(response.data);
             const manga = this.parser.parseViewMore($);
             page++;
@@ -662,21 +652,6 @@ class Parser {
             pages,
             longStrip: true,
         });
-    }
-    parseTags($) {
-        var _a;
-        const genres = [];
-        let i = 0;
-        for (const obj of $('.col-6.col-md-4.col-lg-3.col-xl-2').toArray()) {
-            const label = $('.custom-control-label', $(obj)).text();
-            const id = (_a = $('.custom-control-input.type3', $(obj)).attr('value')) !== null && _a !== void 0 ? _a : '29';
-            if (id == '29')
-                i = 1;
-            if (i == 0)
-                continue;
-            genres.push(createTag({ label: label, id: id }));
-        }
-        return [createTagSection({ id: '0', label: 'genres', tags: genres })];
     }
     parseSearchResults($) {
         var _a, _b, _c, _d;
