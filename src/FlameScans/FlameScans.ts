@@ -18,7 +18,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.0',
+    version: '2.0.1',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -39,6 +39,7 @@ export class FlameScans extends Source {
         requestsPerSecond: 3,
     })
 
+    TIMEOUT = 12
     parser = new Parser()
 
     override getMangaShareUrl(mangaId: string): string {
@@ -50,18 +51,18 @@ export class FlameScans extends Source {
             url: `${FS_DOMAIN}/series/${mangaId}`,
             method: 'GET',
         })
-        const response = await this.requestManager.schedule(request, 3)
+        const response = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseMangaDetails($, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const request = createRequestObject({
-            url: `${FS_DOMAIN}/comic/${mangaId}`,
+            url: `${FS_DOMAIN}/series/${mangaId}`,
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, 3)
+        const response = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapters($, mangaId, this)
     }
@@ -72,25 +73,11 @@ export class FlameScans extends Source {
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, 3)
+        const response = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapterDetails($, mangaId, chapterId)
     }
 
-    // override async getTags(): Promise<TagSection[]> {
-    //     const request = createRequestObject({
-    //         url: `${FS_DOMAIN}/search`,
-    //         method: 'GET',
-    //     })
-
-    //     const response = await this.requestManager.schedule(request, 1)
-    //     const $ = this.cheerio.load(response.data)
-    //     return this.parser.parseTags($)
-    // }
-
-    // override async supportsTagExclusion(): Promise<boolean> {
-    //     return true
-    // }
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
         let page = metadata?.page ?? 1
@@ -104,7 +91,7 @@ export class FlameScans extends Source {
             param,
         })
 
-        const data = await this.requestManager.schedule(request, 2)
+        const data = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(data.data)
         const manga = this.parser.parseSearchResults($)
 
@@ -122,7 +109,7 @@ export class FlameScans extends Source {
             url: `${FS_DOMAIN}`,
             method: 'GET',
         })
-        const response = await this.requestManager.schedule(request, 2)
+        const response = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(response.data)
 
         this.parser.parseHomeSections($, sectionCallback)
@@ -139,7 +126,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.requestManager.schedule(request, this.TIMEOUT)
         const $ = this.cheerio.load(response.data)
         const manga: MangaTile[] = this.parser.parseViewMore($)
 

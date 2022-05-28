@@ -12,7 +12,7 @@ import {
 } from 'paperback-extensions-common'
 
 export class Parser {
-    parseMangaDetails($: CheerioStatic, mangaId: string): Manga {
+    parseMangaDetails($: any, mangaId: string): Manga {
         const title  = $('.thumb img').attr('alt') ?? ''
         const image  = $('.thumb img').attr('src') ?? ''
         const desc   = $('.entry-content.entry-content-single').text().trim() ?? ''
@@ -58,9 +58,10 @@ export class Parser {
         return MangaStatus.ONGOING
     }
 
-    parseChapters($: CheerioStatic, mangaId: string, source: any): Chapter[] {
+    parseChapters($: any, mangaId: string, source: any): Chapter[] {
         const chapters: Chapter[] = []
         const arrChapters = $('#chapterlist li').toArray().reverse()
+        console.log(`length is ${arrChapters.length} and mangaId is ${mangaId}`)
         for (const item of arrChapters) {
             const id = $('a', item).attr('href') ?? ''
             const chapNum = Number($(item).attr('data-num') ?? '0')
@@ -80,7 +81,7 @@ export class Parser {
         return chapters
     }
 
-    parseChapterDetails($: CheerioStatic, mangaId: string, id: string): ChapterDetails {
+    parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
 
         const chapterList = $('#readerarea p img').toArray()
@@ -98,20 +99,7 @@ export class Parser {
         })
     }
 
-    parseTags($: CheerioSelector): TagSection[] {
-        const genres: Tag[] = []
-        let i = 0
-        for (const obj of $('.col-6.col-md-4.col-lg-3.col-xl-2').toArray()) {
-            const label = $('.custom-control-label', $(obj)).text()
-            const id = $('.custom-control-input.type3', $(obj)).attr('value') ?? '29'
-            if (id == '29') i = 1
-            if (i == 0) continue
-            genres.push(createTag({ label: label, id: id }))
-        }
-        return [createTagSection({ id: '0', label: 'genres', tags: genres })]
-    }
-
-    parseSearchResults($: CheerioSelector): MangaTile[] {
+    parseSearchResults($: any): MangaTile[] {
         const results: MangaTile[] = []
 
         for (const item of $('.listupd .bsx').toArray()) {
@@ -129,7 +117,7 @@ export class Parser {
         return results
     }
 
-    parseViewMore($: CheerioStatic): MangaTile[] {
+    parseViewMore($: any): MangaTile[] {
         const more: MangaTile[] = []
         for (const item of $('.listupd .bsx').toArray()) {
             const id    = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? ''
@@ -146,7 +134,7 @@ export class Parser {
         return more
     }
 
-    parseHomeSections($: CheerioStatic, sectionCallback: (section: HomeSection) => void): void {
+    parseHomeSections($: any, sectionCallback: (section: HomeSection) => void): void {
         const section1 = createHomeSection({ id: '1', title: 'Popular', type: HomeSectionType.featured,})
         const section2 = createHomeSection({ id: '2', title: 'Latest', type: HomeSectionType.singleRowNormal, view_more: true,})
         const section3 = createHomeSection({ id: '3', title: 'Popular Titles', type: HomeSectionType.singleRowNormal, view_more: true,})
