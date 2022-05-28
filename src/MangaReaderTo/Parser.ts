@@ -69,7 +69,7 @@ export class Parser {
     parseChapters($: any, mangaId: string, langs: string[]): Chapter[] {
         const chapters: Chapter[] = []
         const langArr = $('.chapters-list-ul ul').toArray()
-        console.log(`Lang Array: ${langs.toString()}`)
+        // console.log(`Lang Array: ${langs.toString()}`)
 
         for (const obj of langArr) {
             const lang = $(obj).attr('id') ?? ''
