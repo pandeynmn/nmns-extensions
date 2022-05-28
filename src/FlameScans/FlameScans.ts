@@ -18,7 +18,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.1',
+    version: '2.0.2',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -37,9 +37,10 @@ export const FlameScansInfo: SourceInfo = {
 export class FlameScans extends Source {
     requestManager = createRequestManager({
         requestsPerSecond: 3,
+        requestTimeout: 8000,
     })
 
-    TIMEOUT = 12
+    RETRY = 5
     parser = new Parser()
 
     override getMangaShareUrl(mangaId: string): string {
@@ -51,7 +52,7 @@ export class FlameScans extends Source {
             url: `${FS_DOMAIN}/series/${mangaId}`,
             method: 'GET',
         })
-        const response = await this.requestManager.schedule(request, this.TIMEOUT)
+        const response = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseMangaDetails($, mangaId)
     }
@@ -62,7 +63,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, this.TIMEOUT)
+        const response = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapters($, mangaId, this)
     }
@@ -73,7 +74,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, this.TIMEOUT)
+        const response = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapterDetails($, mangaId, chapterId)
     }
@@ -91,7 +92,7 @@ export class FlameScans extends Source {
             param,
         })
 
-        const data = await this.requestManager.schedule(request, this.TIMEOUT)
+        const data = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(data.data)
         const manga = this.parser.parseSearchResults($)
 
@@ -109,7 +110,7 @@ export class FlameScans extends Source {
             url: `${FS_DOMAIN}`,
             method: 'GET',
         })
-        const response = await this.requestManager.schedule(request, this.TIMEOUT)
+        const response = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(response.data)
 
         this.parser.parseHomeSections($, sectionCallback)
@@ -126,7 +127,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
 
-        const response = await this.requestManager.schedule(request, this.TIMEOUT)
+        const response = await this.requestManager.schedule(request, this.RETRY)
         const $ = this.cheerio.load(response.data)
         const manga: MangaTile[] = this.parser.parseViewMore($)
 
