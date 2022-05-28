@@ -621,7 +621,6 @@ class Parser {
         var _a, _b;
         const chapters = [];
         const arrChapters = $('#chapterlist li').toArray().reverse();
-        console.log(`length is ${arrChapters.length} and mangaId is ${mangaId}`);
         for (const item of arrChapters) {
             const id = (_a = $('a', item).attr('href')) !== null && _a !== void 0 ? _a : '';
             const chapNum = Number((_b = $(item).attr('data-num')) !== null && _b !== void 0 ? _b : '0');
