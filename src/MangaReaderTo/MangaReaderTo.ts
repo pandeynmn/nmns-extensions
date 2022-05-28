@@ -11,7 +11,6 @@ import {
     Source,
     SourceInfo,
     SourceStateManager,
-    TagSection,
     TagType,
 } from 'paperback-extensions-common'
 
