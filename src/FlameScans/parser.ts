@@ -61,7 +61,6 @@ export class Parser {
     parseChapters($: any, mangaId: string, source: any): Chapter[] {
         const chapters: Chapter[] = []
         const arrChapters = $('#chapterlist li').toArray().reverse()
-        console.log(`length is ${arrChapters.length} and mangaId is ${mangaId}`)
         for (const item of arrChapters) {
             const id = $('a', item).attr('href') ?? ''
             const chapNum = Number($(item).attr('data-num') ?? '0')
