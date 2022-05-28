@@ -11,8 +11,10 @@ import {
     TagSection,
 } from 'paperback-extensions-common'
 
+import arraySort from 'array-sort'
+
 export class Parser {
-    parseMangaDetails($: CheerioStatic, mangaId: string): Manga {
+    parseMangaDetails($: any, mangaId: string): Manga {
         const title = $('.manga-name').first().text() ?? ''
         const desc = $('.description').text() ?? ''
         const image = $('.manga-poster img').attr('src') ?? ''
@@ -64,40 +66,40 @@ export class Parser {
         return MangaStatus.ONGOING
     }
 
-    parseChapters($: CheerioStatic, mangaId: string, arrChap: string[]): Chapter[] {
+    parseChapters($: any, mangaId: string, langs: string[]): Chapter[] {
         const chapters: Chapter[] = []
-        const chapEng = $('#en-chapters li').toArray()
+        const langArr = $('.chapters-list-ul ul').toArray()
+        // console.log(`Lang Array: ${langs.toString()}`)
 
-        let i = 0
-        for (const obj of chapEng) {
-            // const id = $(obj).find('a').attr('href')?.replace('/', '') ?? ''
-            const name = $(obj).find('a').attr('title') ?? ''
-            let chapNum = Number((name.split(':')[0] ?? '').replace('Chapter', '').trim())
-            if (!chapNum) chapNum = i
-            chapters.push(
-                createChapter({
-                    id: arrChap[i] ?? '',
-                    mangaId,
-                    name: this.encodeText(name) ?? '',
-                    chapNum,
-                    langCode: LanguageCode.ENGLISH,
-                })
-            )
-            i++
+        for (const obj of langArr) {
+            const lang = $(obj).attr('id') ?? ''
+            console.log('ID : ' + lang)
+            if (!langs.includes($(obj).attr('id'))) continue
+            const chapArr = $('li', obj).toArray()
+            for (const item of chapArr) {
+                let langCode: LanguageCode = LanguageCode.UNKNOWN
+                if      (lang.includes('en-chapters')) langCode = LanguageCode.ENGLISH
+                else if (lang.includes('ja-chapters')) langCode = LanguageCode.JAPANESE
+                else if (lang.includes('ko-chapters')) langCode = LanguageCode.KOREAN
+                else if (lang.includes('zh-chapters')) langCode = LanguageCode.CHINEESE
+                else if (lang.includes('fr-chapters')) langCode = LanguageCode.FRENCH
+
+                chapters.push(
+                    createChapter({
+                        id: $(item).attr('data-id') ?? '',
+                        mangaId,
+                        name: this.encodeText($('a', item).attr('title') ?? '') ?? '',
+                        chapNum: Number($(item).attr('data-number') ?? '-1'),
+                        langCode: langCode,
+                    })
+                )
+            }
         }
-        return chapters
+        const sorted: Chapter[] = arraySort(chapters, 'chapNum')
+        return sorted
     }
 
-    parseChapterId($: CheerioStatic): string[] {
-        const arrChapters: string[] = []
-
-        const chaptersId = $('#en-chapters li').toArray()
-        for (const obj of chaptersId) {
-            arrChapters.push($(obj).attr('data-id') ?? '')
-        }
-        return arrChapters
-    }
-    parseChapterDetails($: CheerioStatic, mangaId: string, id: string): ChapterDetails {
+    parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
 
         const chapterList = $('#vertical-content div').toArray()
@@ -121,7 +123,7 @@ export class Parser {
         })
     }
 
-    parseSearchResults($: CheerioSelector): MangaTile[] {
+    parseSearchResults($: any): MangaTile[] {
         const results: MangaTile[] = []
 
         for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
@@ -139,7 +141,7 @@ export class Parser {
         return results
     }
 
-    parseHomeSections($: CheerioStatic, sectionCallback: (section: HomeSection) => void): void {
+    parseHomeSections($: any, sectionCallback: (section: HomeSection) => void): void {
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: HomeSectionType.featured,})
         const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: HomeSectionType.singleRowNormal, view_more: true,})
         const section2 = createHomeSection({ id: '2', title: 'Trending Titles', type: HomeSectionType.singleRowNormal,})
@@ -247,7 +249,7 @@ export class Parser {
 
     }
 
-    parseViewMore($: CheerioStatic): MangaTile[] {
+    parseViewMore($: any): MangaTile[] {
         const results: MangaTile[] = []
 
         for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
