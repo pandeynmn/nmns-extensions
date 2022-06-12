@@ -20,7 +20,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.2',
+    version: '2.0.3',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
