@@ -11,7 +11,6 @@ import {
     Response,
     Source,
     SourceInfo,
-    TagSection,
     TagType,
 } from 'paperback-extensions-common'
 
@@ -43,6 +42,7 @@ export const FlameScansInfo: SourceInfo = {
 const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
 
 export class FlameScans extends Source {
+    baseUrl = FS_DOMAIN
     requestManager = createRequestManager({
         requestsPerSecond: 3,
         requestTimeout: 8000,
@@ -53,7 +53,7 @@ export class FlameScans extends Source {
                     ...(request.headers ?? {}),
                     ...{
                         'user-agent': userAgent,
-                        'referer': `${FS_DOMAIN}/`
+                        'referer': `${this.baseUrl}/`
                     }
                 }
 
@@ -70,12 +70,12 @@ export class FlameScans extends Source {
     parser = new Parser()
 
     override getMangaShareUrl(mangaId: string): string {
-        return `${FS_DOMAIN}/series/${mangaId}`
+        return `${this.baseUrl}/series/${mangaId}`
     }
 
     async getMangaDetails(mangaId: string): Promise<Manga> {
         const request = createRequestObject({
-            url: `${FS_DOMAIN}/series/${mangaId}`,
+            url: `${this.baseUrl}/series/${mangaId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
@@ -86,7 +86,7 @@ export class FlameScans extends Source {
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const request = createRequestObject({
-            url: `${FS_DOMAIN}/series/${mangaId}`,
+            url: `${this.baseUrl}/series/${mangaId}`,
             method: 'GET',
         })
 
@@ -113,10 +113,9 @@ export class FlameScans extends Source {
         let page = metadata?.page ?? 1
         if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
 
-        // const param = `/?page=${page}${this.addTags(query)}&title=${query.title}`
         const param = `/page/${page}/?s=${(query.title ?? '').replace(/\s/g, '+')}`
         const request = createRequestObject({
-            url: `${FS_DOMAIN}`,
+            url: `${this.baseUrl}`,
             method: 'GET',
             param,
         })
@@ -137,7 +136,7 @@ export class FlameScans extends Source {
 
     override async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const request = createRequestObject({
-            url: `${FS_DOMAIN}`,
+            url: `${this.baseUrl}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
@@ -151,8 +150,8 @@ export class FlameScans extends Source {
         let page = metadata?.page ?? 1
         if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
         let url = ''
-        if      (homepageSectionId == '2') url = `${FS_DOMAIN}/series/?page=${page}&order=update`
-        else if (homepageSectionId == '3') url = `${FS_DOMAIN}/series/?page=${page}?status=&type=&order=popular`
+        if      (homepageSectionId == '2') url = `${this.baseUrl}/series/?page=${page}&order=update`
+        else if (homepageSectionId == '3') url = `${this.baseUrl}/series/?page=${page}?status=&type=&order=popular`
         const request = createRequestObject({
             url,
             method: 'GET',
@@ -197,11 +196,11 @@ export class FlameScans extends Source {
 
     override getCloudflareBypassRequest(): Request {
         return createRequestObject({
-            url: FS_DOMAIN,
+            url: this.baseUrl,
             method: 'GET',
             headers: {
                 'user-agent': userAgent,
-                'referer': `${FS_DOMAIN}/`
+                'referer': `${this.baseUrl}/`
             }
         })
     }
@@ -211,22 +210,4 @@ export class FlameScans extends Source {
             throw new Error('CLOUDFLARE BYPASS ERROR:\nPlease go to Settings > Sources > <The name of this source> and press Cloudflare Bypass')
         }
     }
-
-    // addTags(query: SearchRequest): string {
-    //     let tag_str = ''
-    //     if (query.includedTags?.length != null) {
-    //         tag_str = '&genre_inc='
-    //         for (const tag of query.includedTags) {
-    //             tag_str += `${tag.id},`
-    //         }
-    //     }
-
-    //     if (query.excludedTags?.length != null) {
-    //         tag_str += '&genre_exc='
-    //         for (const tag of query.excludedTags) {
-    //             tag_str += `${tag.id},`
-    //         }
-    //     }
-    //     return tag_str.replace(/,\s*$/, '')
-    // }
 }
