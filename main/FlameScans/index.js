@@ -376,7 +376,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const FS_DOMAIN = 'https://flamescans.org';
 exports.FlameScansInfo = {
-    version: '2.0.2',
+    version: '2.0.3',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -389,44 +389,48 @@ exports.FlameScansInfo = {
             text: 'English',
             type: paperback_extensions_common_1.TagType.GREY,
         },
+        {
+            text: 'Cloudflare',
+            type: paperback_extensions_common_1.TagType.RED
+        },
     ],
 };
+const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1';
 class FlameScans extends paperback_extensions_common_1.Source {
     constructor() {
         super(...arguments);
+        this.baseUrl = FS_DOMAIN;
         this.requestManager = createRequestManager({
             requestsPerSecond: 3,
             requestTimeout: 8000,
+            interceptor: {
+                interceptRequest: (request) => __awaiter(this, void 0, void 0, function* () {
+                    var _a;
+                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), {
+                        'user-agent': userAgent,
+                        'referer': `${this.baseUrl}/`
+                    });
+                    return request;
+                }),
+                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () {
+                    return response;
+                })
+            }
         });
         this.RETRY = 5;
         this.parser = new parser_1.Parser();
-        // addTags(query: SearchRequest): string {
-        //     let tag_str = ''
-        //     if (query.includedTags?.length != null) {
-        //         tag_str = '&genre_inc='
-        //         for (const tag of query.includedTags) {
-        //             tag_str += `${tag.id},`
-        //         }
-        //     }
-        //     if (query.excludedTags?.length != null) {
-        //         tag_str += '&genre_exc='
-        //         for (const tag of query.excludedTags) {
-        //             tag_str += `${tag.id},`
-        //         }
-        //     }
-        //     return tag_str.replace(/,\s*$/, '')
-        // }
     }
     getMangaShareUrl(mangaId) {
-        return `${FS_DOMAIN}/series/${mangaId}`;
+        return `${this.baseUrl}/series/${mangaId}`;
     }
     getMangaDetails(mangaId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${FS_DOMAIN}/series/${mangaId}`,
+                url: `${this.baseUrl}/series/${mangaId}`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseMangaDetails($, mangaId);
         });
@@ -434,10 +438,11 @@ class FlameScans extends paperback_extensions_common_1.Source {
     getChapters(mangaId) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${FS_DOMAIN}/series/${mangaId}`,
+                url: `${this.baseUrl}/series/${mangaId}`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapters($, mangaId, this);
         });
@@ -449,6 +454,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
             return this.parser.parseChapterDetails($, mangaId, chapterId);
         });
@@ -459,14 +465,14 @@ class FlameScans extends paperback_extensions_common_1.Source {
             let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
             if (page == -1)
                 return createPagedResults({ results: [], metadata: { page: -1 } });
-            // const param = `/?page=${page}${this.addTags(query)}&title=${query.title}`
             const param = `/page/${page}/?s=${((_b = query.title) !== null && _b !== void 0 ? _b : '').replace(/\s/g, '+')}`;
             const request = createRequestObject({
-                url: `${FS_DOMAIN}`,
+                url: `${this.baseUrl}`,
                 method: 'GET',
                 param,
             });
             const data = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(data.status);
             const $ = this.cheerio.load(data.data);
             const manga = this.parser.parseSearchResults($);
             page++;
@@ -481,10 +487,11 @@ class FlameScans extends paperback_extensions_common_1.Source {
     getHomePageSections(sectionCallback) {
         return __awaiter(this, void 0, void 0, function* () {
             const request = createRequestObject({
-                url: `${FS_DOMAIN}`,
+                url: `${this.baseUrl}`,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
             this.parser.parseHomeSections($, sectionCallback);
         });
@@ -497,14 +504,15 @@ class FlameScans extends paperback_extensions_common_1.Source {
                 return createPagedResults({ results: [], metadata: { page: -1 } });
             let url = '';
             if (homepageSectionId == '2')
-                url = `${FS_DOMAIN}/series/?page=${page}&order=update`;
+                url = `${this.baseUrl}/series/?page=${page}&order=update`;
             else if (homepageSectionId == '3')
-                url = `${FS_DOMAIN}/series/?page=${page}?status=&type=&order=popular`;
+                url = `${this.baseUrl}/series/?page=${page}?status=&type=&order=popular`;
             const request = createRequestObject({
                 url,
                 method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, this.RETRY);
+            this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
             const manga = this.parser.parseViewMore($);
             page++;
@@ -541,6 +549,21 @@ class FlameScans extends paperback_extensions_common_1.Source {
             time = new Date(timeAgo);
         }
         return time;
+    }
+    getCloudflareBypassRequest() {
+        return createRequestObject({
+            url: this.baseUrl,
+            method: 'GET',
+            headers: {
+                'user-agent': userAgent,
+                'referer': `${this.baseUrl}/`
+            }
+        });
+    }
+    CloudFlareError(status) {
+        if (status == 503) {
+            throw new Error('CLOUDFLARE BYPASS ERROR:\nPlease go to Settings > Sources > <The name of this source> and press Cloudflare Bypass');
+        }
     }
 }
 exports.FlameScans = FlameScans;
