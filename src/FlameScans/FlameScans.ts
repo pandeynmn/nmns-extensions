@@ -7,6 +7,8 @@ import {
     MangaTile,
     PagedResults,
     SearchRequest,
+    Request,
+    Response,
     Source,
     SourceInfo,
     TagSection,
@@ -18,7 +20,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.2',
+    version: '2.0.3',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -31,13 +33,37 @@ export const FlameScansInfo: SourceInfo = {
             text: 'English',
             type: TagType.GREY,
         },
+        {
+            text: 'Cloudflare',
+            type: TagType.RED
+        },
     ],
 }
+
+const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
 
 export class FlameScans extends Source {
     requestManager = createRequestManager({
         requestsPerSecond: 3,
         requestTimeout: 8000,
+        interceptor: {
+            interceptRequest: async (request: Request): Promise<Request> => {
+
+                request.headers = {
+                    ...(request.headers ?? {}),
+                    ...{
+                        'user-agent': userAgent,
+                        'referer': `${FS_DOMAIN}/`
+                    }
+                }
+
+                return request
+            },
+
+            interceptResponse: async (response: Response): Promise<Response> => {
+                return response
+            }
+        }
     })
 
     RETRY = 5
@@ -53,6 +79,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseMangaDetails($, mangaId)
     }
@@ -64,6 +91,7 @@ export class FlameScans extends Source {
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapters($, mangaId, this)
     }
@@ -75,6 +103,7 @@ export class FlameScans extends Source {
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapterDetails($, mangaId, chapterId)
     }
@@ -93,6 +122,7 @@ export class FlameScans extends Source {
         })
 
         const data = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(data.status)
         const $ = this.cheerio.load(data.data)
         const manga = this.parser.parseSearchResults($)
 
@@ -111,6 +141,7 @@ export class FlameScans extends Source {
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
 
         this.parser.parseHomeSections($, sectionCallback)
@@ -128,6 +159,7 @@ export class FlameScans extends Source {
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
         const manga: MangaTile[] = this.parser.parseViewMore($)
 
@@ -161,6 +193,23 @@ export class FlameScans extends Source {
         }
 
         return time
+    }
+
+    override getCloudflareBypassRequest(): Request {
+        return createRequestObject({
+            url: FS_DOMAIN,
+            method: 'GET',
+            headers: {
+                'user-agent': userAgent,
+                'referer': `${FS_DOMAIN}/`
+            }
+        })
+    }
+
+    CloudFlareError(status: any) {
+        if (status == 503) {
+            throw new Error('CLOUDFLARE BYPASS ERROR:\nPlease go to Settings > Sources > <The name of this source> and press Cloudflare Bypass')
+        }
     }
 
     // addTags(query: SearchRequest): string {
