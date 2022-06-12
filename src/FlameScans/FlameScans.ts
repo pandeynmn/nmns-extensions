@@ -201,7 +201,7 @@ export class FlameScans extends Source {
             method: 'GET',
             headers: {
                 'user-agent': userAgent,
-                'referer': `${FS_DOMAIN}.`
+                'referer': `${FS_DOMAIN}/`
             }
         })
     }
