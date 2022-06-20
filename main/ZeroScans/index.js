@@ -429,7 +429,6 @@ class ZeroScans extends paperback_extensions_common_1.Source {
                 url: `${this.baseUrl}/comics/${mangaId}`,
                 method: 'GET',
             });
-            console.log('ttestt');
             const response = yield this.requestManager.schedule(request, this.RETRY);
             this.CloudFlareError(response.status);
             const $ = this.cheerio.load(response.data);
@@ -448,7 +447,13 @@ class ZeroScans extends paperback_extensions_common_1.Source {
             const $ = this.cheerio.load(response.data);
             const id_html = $.html().toString();
             const start_index = id_html.indexOf('data:[{details:{id:');
-            const numericId = id_html.substring(start_index + 19, id_html.indexOf(',name:'));
+            let numericId = id_html.substring(start_index + 19, id_html.indexOf(',name:'));
+            if (numericId == 'e') {
+                const start_index = id_html.indexOf(',false,"Zero Scans"));') - 5;
+                numericId = id_html.substring(start_index);
+                numericId = numericId.substring(numericId.indexOf(',') + 1);
+                numericId = numericId.substring(0, numericId.indexOf(','));
+            }
             let json = null;
             let page = 1;
             do {
@@ -462,7 +467,6 @@ class ZeroScans extends paperback_extensions_common_1.Source {
     createChapterRequest(numericId, page) {
         return __awaiter(this, void 0, void 0, function* () {
             const url = `https://zeroscans.com/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`;
-            console.log(`createChapterRequest: ${url}`);
             const request = createRequestObject({
                 url,
                 method: 'GET',
@@ -565,7 +569,6 @@ class ZeroScans extends paperback_extensions_common_1.Source {
         date = date.toUpperCase();
         let time;
         const number = Number(((_a = /\d*/.exec(date)) !== null && _a !== void 0 ? _a : [])[0]);
-        console.log(number);
         if (date.includes('LESS THAN AN HOUR') || date.includes('JUST NOW')) {
             time = new Date(Date.now());
         }
@@ -635,7 +638,6 @@ class Parser {
         const arrayTags = [];
         for (const obj of $('.v-slide-group__content a').toArray()) {
             const id = (_f = $(obj).attr('href').replace('/comics?genres=', '')) !== null && _f !== void 0 ? _f : '';
-            console.log(`manga id from tag: ${id}`);
             const label = $(obj).text().trim();
             if (!id || !label)
                 continue;
