@@ -9,8 +9,6 @@ import {
     MangaTile,
     Tag,
     TagSection,
-    Request,
-    Response,
     SearchRequest,
 } from 'paperback-extensions-common'
 
@@ -32,7 +30,6 @@ export class Parser {
         const arrayTags: Tag[] = []
         for (const obj of $('.v-slide-group__content a').toArray()) {
             const id    = $(obj).attr('href').replace('/comics?genres=', '') ?? ''
-            console.log(`manga id from tag: ${id}`)
             const label = $(obj).text().trim()
             if (!id || !label) continue
             arrayTags.push({ id: id, label: label })

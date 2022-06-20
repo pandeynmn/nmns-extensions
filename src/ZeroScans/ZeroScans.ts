@@ -4,7 +4,6 @@ import {
     ContentRating,
     HomeSection,
     Manga,
-    MangaTile,
     PagedResults,
     SearchRequest,
     Request,
@@ -12,7 +11,6 @@ import {
     Source,
     SourceInfo,
     TagType,
-    SearchField,
     TagSection,
     Tag,
 } from 'paperback-extensions-common'
@@ -81,7 +79,6 @@ export class ZeroScans extends Source {
             url: `${this.baseUrl}/comics/${mangaId}`,
             method: 'GET',
         })
-        console.log('ttestt')
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
@@ -102,7 +99,14 @@ export class ZeroScans extends Source {
 
         const id_html = $.html().toString()
         const start_index = id_html.indexOf('data:[{details:{id:')
-        const numericId = id_html.substring(start_index+19, id_html.indexOf(',name:'))
+        let numericId = id_html.substring(start_index+19, id_html.indexOf(',name:'))
+
+        if (numericId == 'e') {
+            const start_index = id_html.indexOf(',false,"Zero Scans"));') - 5
+            numericId = id_html.substring(start_index)
+            numericId = numericId.substring(numericId.indexOf(',') + 1)
+            numericId = numericId.substring(0, numericId.indexOf(','))
+        }
 
         let json = null
 
@@ -119,7 +123,6 @@ export class ZeroScans extends Source {
 
     async createChapterRequest(numericId: string, page: number) : Promise<any> {
         const url = `https://zeroscans.com/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`
-        console.log(`createChapterRequest: ${url}`)
         const request = createRequestObject({
             url,
             method: 'GET',
@@ -224,7 +227,6 @@ export class ZeroScans extends Source {
         date = date.toUpperCase()
         let time: Date
         const number = Number((/\d*/.exec(date) ?? [])[0])
-        console.log(number)
         if (date.includes('LESS THAN AN HOUR') || date.includes('JUST NOW')) {
             time = new Date(Date.now())
         } else if (date.includes('YEAR') || date.includes('YEARS')) {
