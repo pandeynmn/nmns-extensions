@@ -12,6 +12,7 @@ import {
     Source,
     SourceInfo,
     TagType,
+    RequestManagerInfo,
 } from 'paperback-extensions-common'
 
 import { Parser } from './parser'
@@ -19,7 +20,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.3',
+    version: '2.0.4',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -39,7 +40,7 @@ export const FlameScansInfo: SourceInfo = {
     ],
 }
 
-const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
+const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.124 Safari/537.36 Edg/102.0.1245.44'
 
 export class FlameScans extends Source {
     baseUrl = FS_DOMAIN
@@ -60,11 +61,12 @@ export class FlameScans extends Source {
                 return request
             },
 
-            interceptResponse: async (response: Response): Promise<Response> => {
+            interceptResponse: async (response: FSResponse): Promise<Response> => {
+                response['fixedData'] = response.data ?? Buffer.from(createByteArray(response.rawData)).toString()
                 return response
             }
         }
-    })
+    }) as FSRequestManager
 
     RETRY = 5
     parser = new Parser()
@@ -80,7 +82,7 @@ export class FlameScans extends Source {
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data)
+        const $ = this.cheerio.load(response.data ?? response['fixedData'])
         return this.parser.parseMangaDetails($, mangaId)
     }
 
@@ -92,7 +94,7 @@ export class FlameScans extends Source {
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data)
+        const $ = this.cheerio.load(response.data ?? response['fixedData'])
         return this.parser.parseChapters($, mangaId, this)
     }
 
@@ -104,7 +106,7 @@ export class FlameScans extends Source {
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data)
+        const $ = this.cheerio.load(response.data ?? response['fixedData'])
         return this.parser.parseChapterDetails($, mangaId, chapterId)
     }
 
@@ -141,7 +143,7 @@ export class FlameScans extends Source {
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data)
+        const $ = this.cheerio.load(response.data ?? response['fixedData'])
 
         this.parser.parseHomeSections($, sectionCallback)
     }
@@ -159,7 +161,7 @@ export class FlameScans extends Source {
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data)
+        const $ = this.cheerio.load(response.data ?? response['fixedData'])
         const manga: MangaTile[] = this.parser.parseViewMore($)
 
         page++
@@ -210,4 +212,12 @@ export class FlameScans extends Source {
             throw new Error('CLOUDFLARE BYPASS ERROR:\nPlease go to Settings > Sources > <The name of this source> and press Cloudflare Bypass')
         }
     }
+}
+
+// xOnlyFadi
+export interface FSResponse extends Response {
+    fixedData: string;
+}
+export interface FSRequestManager extends RequestManagerInfo {
+    schedule: (request: Request, retryCount: number) => Promise<FSResponse>;
 }
