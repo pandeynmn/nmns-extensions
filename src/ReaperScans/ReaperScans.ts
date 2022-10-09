@@ -161,21 +161,25 @@ export class ReaperScans extends Source {
      */
 
     override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
-        const page = metadata?.page ?? 1
+        let page = metadata?.page ?? 1
         if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
 
         const request = createRequestObject({
-            url: `${this.baseUrl}/comics`,
+            url: `${this.baseUrl}/comics?page=${page.toString()}`,
             method: 'GET',
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data)
+        const result =  this.parser.parseViewMore($)
+
+        if (result.length < 1)  page = -1
+        else page++
 
         return createPagedResults({
             results: this.parser.parseViewMore($),
-            metadata: { page: -1 },
+            metadata: { page: page },
         })
     }
 
