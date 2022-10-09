@@ -368,7 +368,7 @@ const parser_1 = require("./parser");
 const helper_1 = require("./helper");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.0',
+    version: '3.0.1',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -493,19 +493,24 @@ class ReaperScans extends paperback_extensions_common_1.Source {
 
      */
     async getViewMoreItems(homepageSectionId, metadata) {
-        const page = metadata?.page ?? 1;
+        let page = metadata?.page ?? 1;
         if (page == -1)
             return createPagedResults({ results: [], metadata: { page: -1 } });
         const request = createRequestObject({
-            url: `${this.baseUrl}/comics`,
+            url: `${this.baseUrl}/comics?page=${page.toString()}`,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, this.RETRY);
         this.CloudFlareError(response.status);
         const $ = this.cheerio.load(response.data);
+        const result = this.parser.parseViewMore($);
+        if (result.length < 1)
+            page = -1;
+        else
+            page++;
         return createPagedResults({
             results: this.parser.parseViewMore($),
-            metadata: { page: -1 },
+            metadata: { page: page },
         });
     }
     async getHomePageSections(sectionCallback) {
