@@ -31777,48 +31777,26 @@ module.exports = function whichTypedArray(value) {
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"available-typed-arrays":8,"call-bind/callBound":18,"es-abstract/helpers/getOwnPropertyDescriptor":27,"foreach":32,"has-tostringtag/shams":39,"is-typed-array":69}],223:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaReaderInterceptor = void 0;
 class MangaReaderInterceptor {
     constructor(interceptors) {
         this.interceptors = interceptors;
     }
-    interceptRequest(request) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return request;
-        });
+    async interceptRequest(request) {
+        return request;
     }
-    interceptResponse(response) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const interceptor of this.interceptors) {
-                response = yield interceptor.interceptResponse(response);
-            }
-            return response;
-        });
+    async interceptResponse(response) {
+        for (const interceptor of this.interceptors) {
+            response = await interceptor.interceptResponse(response);
+        }
+        return response;
     }
 }
 exports.MangaReaderInterceptor = MangaReaderInterceptor;
 
 },{}],224:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaReaderTo = exports.MangaReaderToInfo = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
@@ -31862,119 +31840,101 @@ class MangaReaderTo extends paperback_extensions_common_1.Source {
     getMangaShareUrl(mangaId) {
         return `${MANGAREADER_DOMAIN}/${mangaId}`;
     }
-    getSourceMenu() {
-        return __awaiter(this, void 0, void 0, function* () {
-            return Promise.resolve(createSection({
-                id: 'main',
-                header: 'Source Settings',
-                rows: () => __awaiter(this, void 0, void 0, function* () {
-                    return [
-                        yield (0, Settings_1.mangaSection)(this.stateManager),
-                    ];
-                })
-            }));
+    async getSourceMenu() {
+        return Promise.resolve(createSection({
+            id: 'main',
+            header: 'Source Settings',
+            rows: async () => [
+                await (0, Settings_1.mangaSection)(this.stateManager),
+            ]
+        }));
+    }
+    async getMangaDetails(mangaId) {
+        const request = createRequestObject({
+            url: `${MANGAREADER_DOMAIN}/${mangaId}`,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        const $ = this.cheerio.load(response.data);
+        return this.parser.parseMangaDetails($, mangaId);
+    }
+    async getChapters(mangaId) {
+        const idd = mangaId.split('-');
+        const request = createRequestObject({
+            url: `${MANGAREADER_DOMAIN}/ajax/manga/reading-list/${idd[idd.length - 1]}?readingBy=chap`,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        const jsonData = JSON.parse(response.data);
+        const $ = this.cheerio.load(jsonData.html);
+        const selected_langs = await (0, Settings_1.getEnabledLanguages)(this.stateManager);
+        return this.parser.parseChapters($, mangaId, selected_langs);
+    }
+    async getChapterDetails(mangaId, chapterId) {
+        const request = createRequestObject({
+            url: `https://mangareader.to/ajax/image/list/chap/${chapterId}?mode=vertical&quality=high&hozPageSize=1`,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        const jsonData = JSON.parse(response.data);
+        const $ = this.cheerio.load(jsonData.html);
+        return this.parser.parseChapterDetails($, mangaId, chapterId);
+    }
+    async getSearchResults(query, metadata) {
+        let page = metadata?.page ?? 1;
+        if (page == -1)
+            return createPagedResults({ results: [], metadata: { page: -1 } });
+        const param = `/search?keyword=${(query.title ?? '').replaceAll(' ', '+')}&page=${page}`;
+        const request = createRequestObject({
+            url: MANGAREADER_DOMAIN,
+            method: 'GET',
+            param,
+        });
+        const data = await this.requestManager.schedule(request, this.RETRY);
+        const $ = this.cheerio.load(data.data);
+        const manga = this.parser.parseSearchResults($);
+        page++;
+        if (manga.length < 18)
+            page = -1;
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
         });
     }
-    getMangaDetails(mangaId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `${MANGAREADER_DOMAIN}/${mangaId}`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            const $ = this.cheerio.load(response.data);
-            return this.parser.parseMangaDetails($, mangaId);
+    async getHomePageSections(sectionCallback) {
+        const request = createRequestObject({
+            url: `${MANGAREADER_DOMAIN}/home`,
+            method: 'GET',
         });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        const $ = this.cheerio.load(response.data);
+        this.parser.parseHomeSections($, sectionCallback);
     }
-    getChapters(mangaId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const idd = mangaId.split('-');
-            const request = createRequestObject({
-                url: `${MANGAREADER_DOMAIN}/ajax/manga/reading-list/${idd[idd.length - 1]}?readingBy=chap`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            const jsonData = JSON.parse(response.data);
-            const $ = this.cheerio.load(jsonData.html);
-            const selected_langs = yield (0, Settings_1.getEnabledLanguages)(this.stateManager);
-            return this.parser.parseChapters($, mangaId, selected_langs);
+    async getViewMoreItems(homepageSectionId, metadata) {
+        let page = metadata?.page ?? 1;
+        if (page == -1)
+            return createPagedResults({ results: [], metadata: { page: -1 } });
+        let url = '';
+        if (homepageSectionId == '1')
+            url = `${MANGAREADER_DOMAIN}/latest-updated`;
+        else if (homepageSectionId == '3')
+            url = `${MANGAREADER_DOMAIN}/most-viewed`;
+        else if (homepageSectionId == '4')
+            url = `${MANGAREADER_DOMAIN}/completed`;
+        const request = createRequestObject({
+            url,
+            method: 'GET',
+            param: `?page=${page}`,
         });
-    }
-    getChapterDetails(mangaId, chapterId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `https://mangareader.to/ajax/image/list/chap/${chapterId}?mode=vertical&quality=high&hozPageSize=1`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            const jsonData = JSON.parse(response.data);
-            const $ = this.cheerio.load(jsonData.html);
-            return this.parser.parseChapterDetails($, mangaId, chapterId);
-        });
-    }
-    getSearchResults(query, metadata) {
-        var _a, _b;
-        return __awaiter(this, void 0, void 0, function* () {
-            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
-            if (page == -1)
-                return createPagedResults({ results: [], metadata: { page: -1 } });
-            const param = `/search?keyword=${((_b = query.title) !== null && _b !== void 0 ? _b : '').replaceAll(' ', '+')}&page=${page}`;
-            const request = createRequestObject({
-                url: MANGAREADER_DOMAIN,
-                method: 'GET',
-                param,
-            });
-            const data = yield this.requestManager.schedule(request, this.RETRY);
-            const $ = this.cheerio.load(data.data);
-            const manga = this.parser.parseSearchResults($);
-            page++;
-            if (manga.length < 18)
-                page = -1;
-            return createPagedResults({
-                results: manga,
-                metadata: { page: page },
-            });
-        });
-    }
-    getHomePageSections(sectionCallback) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `${MANGAREADER_DOMAIN}/home`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            const $ = this.cheerio.load(response.data);
-            this.parser.parseHomeSections($, sectionCallback);
-        });
-    }
-    getViewMoreItems(homepageSectionId, metadata) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
-            if (page == -1)
-                return createPagedResults({ results: [], metadata: { page: -1 } });
-            let url = '';
-            if (homepageSectionId == '1')
-                url = `${MANGAREADER_DOMAIN}/latest-updated`;
-            else if (homepageSectionId == '3')
-                url = `${MANGAREADER_DOMAIN}/most-viewed`;
-            else if (homepageSectionId == '4')
-                url = `${MANGAREADER_DOMAIN}/completed`;
-            const request = createRequestObject({
-                url,
-                method: 'GET',
-                param: `?page=${page}`,
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            const $ = this.cheerio.load(response.data);
-            const manga = this.parser.parseViewMore($);
-            page++;
-            if (manga.length < 10)
-                page = -1;
-            return createPagedResults({
-                results: manga,
-                metadata: { page: page },
-            });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        const $ = this.cheerio.load(response.data);
+        const manga = this.parser.parseViewMore($);
+        page++;
+        if (manga.length < 10)
+            page = -1;
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
         });
     }
 }
@@ -31991,14 +31951,13 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const array_sort_1 = __importDefault(require("array-sort"));
 class Parser {
     parseMangaDetails($, mangaId) {
-        var _a, _b, _c, _d;
-        const title = (_a = $('.manga-name').first().text()) !== null && _a !== void 0 ? _a : '';
-        const desc = (_b = $('.description').text()) !== null && _b !== void 0 ? _b : '';
-        const image = (_c = $('.manga-poster img').attr('src')) !== null && _c !== void 0 ? _c : '';
+        const title = $('.manga-name').first().text() ?? '';
+        const desc = $('.description').text() ?? '';
+        const image = $('.manga-poster img').attr('src') ?? '';
         const [status, author, views, rating] = this.parseDetailsSet($);
         const arrayTags = [];
         for (const obj of $('.genres a').toArray()) {
-            const id = ((_d = $(obj).attr('href')) !== null && _d !== void 0 ? _d : '').replace('/genre/', '');
+            const id = ($(obj).attr('href') ?? '').replace('/genre/', '');
             const label = $(obj).text();
             if (!id || !label)
                 continue;
@@ -32019,18 +31978,17 @@ class Parser {
         });
     }
     parseDetailsSet($) {
-        var _a, _b, _c;
         let status = paperback_extensions_common_1.MangaStatus.ONGOING, author = '', views = 0, rating = 0;
         for (const obj of $('.anisc-info .item').toArray()) {
             const type = $('.item-head', obj).text().toLowerCase();
             if (type.includes('status'))
                 status = this.mangaStatus($('.name', obj).text().toLowerCase());
             else if (type.includes('author'))
-                author = (_a = $('a', obj).text().trim()) !== null && _a !== void 0 ? _a : '';
+                author = $('a', obj).text().trim() ?? '';
             else if (type.includes('views'))
-                views = Number((_b = $('.name', obj).text().replace(',', '').trim()) !== null && _b !== void 0 ? _b : '0');
+                views = Number($('.name', obj).text().replace(',', '').trim() ?? '0');
             else if (type.includes('score'))
-                rating = Number((_c = $('.name', obj).text().trim()) !== null && _c !== void 0 ? _c : '0');
+                rating = Number($('.name', obj).text().trim() ?? '0');
         }
         return [status, author, views, rating];
     }
@@ -32048,12 +32006,11 @@ class Parser {
         return paperback_extensions_common_1.MangaStatus.ONGOING;
     }
     parseChapters($, mangaId, langs) {
-        var _a, _b, _c, _d, _e;
         const chapters = [];
         const langArr = $('.chapters-list-ul ul').toArray();
         // console.log(`Lang Array: ${langs.toString()}`)
         for (const obj of langArr) {
-            const lang = (_a = $(obj).attr('id')) !== null && _a !== void 0 ? _a : '';
+            const lang = $(obj).attr('id') ?? '';
             console.log('ID : ' + lang);
             if (!langs.includes($(obj).attr('id')))
                 continue;
@@ -32071,10 +32028,10 @@ class Parser {
                 else if (lang.includes('fr-chapters'))
                     langCode = paperback_extensions_common_1.LanguageCode.FRENCH;
                 chapters.push(createChapter({
-                    id: (_b = $(item).attr('data-id')) !== null && _b !== void 0 ? _b : '',
+                    id: $(item).attr('data-id') ?? '',
                     mangaId,
-                    name: (_d = this.encodeText((_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '')) !== null && _d !== void 0 ? _d : '',
-                    chapNum: Number((_e = $(item).attr('data-number')) !== null && _e !== void 0 ? _e : '-1'),
+                    name: this.encodeText($('a', item).attr('title') ?? '') ?? '',
+                    chapNum: Number($(item).attr('data-number') ?? '-1'),
                     langCode: langCode,
                 }));
             }
@@ -32106,12 +32063,11 @@ class Parser {
         });
     }
     parseSearchResults($) {
-        var _a, _b, _c;
         const results = [];
         for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
-            const id = ((_a = $('.manga-poster', obj).attr('href')) !== null && _a !== void 0 ? _a : '').replace('/', '');
-            const title = (_b = $('img', obj).attr('alt')) !== null && _b !== void 0 ? _b : '';
-            const image = (_c = $('img', obj).attr('src')) !== null && _c !== void 0 ? _c : '';
+            const id = ($('.manga-poster', obj).attr('href') ?? '').replace('/', '');
+            const title = $('img', obj).attr('alt') ?? '';
+            const image = $('img', obj).attr('src') ?? '';
             results.push(createMangaTile({
                 id,
                 image,
@@ -32121,7 +32077,6 @@ class Parser {
         return results;
     }
     parseHomeSections($, sectionCallback) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
         const section0 = createHomeSection({ id: '0', title: 'Featured', type: paperback_extensions_common_1.HomeSectionType.featured, });
         const section1 = createHomeSection({ id: '1', title: 'Latest Updates', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section2 = createHomeSection({ id: '2', title: 'Trending Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, });
@@ -32139,9 +32094,9 @@ class Parser {
         const arrRecommended = $('#featured-03   .swiper-container .swiper-slide').toArray();
         const arrCompleted = $('#featured-04   .swiper-container .swiper-slide').toArray();
         for (const obj of arrFeatured) {
-            const title = (_a = $('a img', obj).attr('alt')) !== null && _a !== void 0 ? _a : '';
-            const image = (_b = $('a img', obj).attr('src')) !== null && _b !== void 0 ? _b : '';
-            const id = ((_c = $('a', obj).attr('href')) !== null && _c !== void 0 ? _c : '').replace('/', '');
+            const title = $('a img', obj).attr('alt') ?? '';
+            const image = $('a img', obj).attr('src') ?? '';
+            const id = ($('a', obj).attr('href') ?? '').replace('/', '');
             featured.push(createMangaTile({
                 id,
                 image,
@@ -32151,9 +32106,9 @@ class Parser {
         section0.items = featured;
         sectionCallback(section0);
         for (const obj of arrLatest) {
-            const id = ((_d = $('.manga-poster', obj).attr('href')) !== null && _d !== void 0 ? _d : '').replace('/', '');
-            const title = (_e = $('img', obj).attr('alt')) !== null && _e !== void 0 ? _e : '';
-            const image = (_f = $('img', obj).attr('src')) !== null && _f !== void 0 ? _f : '';
+            const id = ($('.manga-poster', obj).attr('href') ?? '').replace('/', '');
+            const title = $('img', obj).attr('alt') ?? '';
+            const image = $('img', obj).attr('src') ?? '';
             latest.push(createMangaTile({
                 id,
                 image,
@@ -32161,9 +32116,9 @@ class Parser {
             }));
         }
         for (const obj of arrLatest2) {
-            const id = ((_g = $('.manga-poster', obj).attr('href')) !== null && _g !== void 0 ? _g : '').replace('/', '');
-            const title = (_h = $('img', obj).attr('alt')) !== null && _h !== void 0 ? _h : '';
-            const image = (_j = $('img', obj).attr('src')) !== null && _j !== void 0 ? _j : '';
+            const id = ($('.manga-poster', obj).attr('href') ?? '').replace('/', '');
+            const title = $('img', obj).attr('alt') ?? '';
+            const image = $('img', obj).attr('src') ?? '';
             latest.push(createMangaTile({
                 id,
                 image,
@@ -32173,9 +32128,9 @@ class Parser {
         section1.items = latest;
         sectionCallback(section1);
         for (const obj of arrTrending) {
-            const id = ((_k = $('.manga-poster a', obj).attr('href')) !== null && _k !== void 0 ? _k : '').replace('/', '');
-            const title = (_l = $('.anime-name', obj).text()) !== null && _l !== void 0 ? _l : '';
-            const image = (_m = $('.manga-poster img', obj).attr('src')) !== null && _m !== void 0 ? _m : '';
+            const id = ($('.manga-poster a', obj).attr('href') ?? '').replace('/', '');
+            const title = $('.anime-name', obj).text() ?? '';
+            const image = $('.manga-poster img', obj).attr('src') ?? '';
             trending.push(createMangaTile({
                 id,
                 image,
@@ -32185,9 +32140,9 @@ class Parser {
         section2.items = trending;
         sectionCallback(section2);
         for (const obj of arrRecommended) {
-            const id = ((_o = $('.manga-poster a', obj).attr('href')) !== null && _o !== void 0 ? _o : '').replace('/', '');
-            const title = (_p = $('.manga-name a', obj).attr('title')) !== null && _p !== void 0 ? _p : '';
-            const image = (_q = $('.manga-poster img', obj).attr('src')) !== null && _q !== void 0 ? _q : '';
+            const id = ($('.manga-poster a', obj).attr('href') ?? '').replace('/', '');
+            const title = $('.manga-name a', obj).attr('title') ?? '';
+            const image = $('.manga-poster img', obj).attr('src') ?? '';
             recommended.push(createMangaTile({
                 id,
                 image,
@@ -32197,9 +32152,9 @@ class Parser {
         section3.items = recommended;
         sectionCallback(section3);
         for (const obj of arrCompleted) {
-            const id = ((_r = $('.manga-poster a', obj).attr('href')) !== null && _r !== void 0 ? _r : '').replace('/', '');
-            const title = (_s = $('.manga-name a', obj).attr('title')) !== null && _s !== void 0 ? _s : '';
-            const image = (_t = $('.manga-poster img', obj).attr('src')) !== null && _t !== void 0 ? _t : '';
+            const id = ($('.manga-poster a', obj).attr('href') ?? '').replace('/', '');
+            const title = $('.manga-name a', obj).attr('title') ?? '';
+            const image = $('.manga-poster img', obj).attr('src') ?? '';
             completed.push(createMangaTile({
                 id,
                 image,
@@ -32210,12 +32165,11 @@ class Parser {
         sectionCallback(section4);
     }
     parseViewMore($) {
-        var _a, _b, _c;
         const results = [];
         for (const obj of $('.mls-wrap .item.item-spc').toArray()) {
-            const id = ((_a = $('.manga-poster', obj).attr('href')) !== null && _a !== void 0 ? _a : '').replace('/', '');
-            const title = (_b = $('img', obj).attr('alt')) !== null && _b !== void 0 ? _b : '';
-            const image = (_c = $('img', obj).attr('src')) !== null && _c !== void 0 ? _c : '';
+            const id = ($('.manga-poster', obj).attr('href') ?? '').replace('/', '');
+            const title = $('img', obj).attr('alt') ?? '';
+            const image = $('img', obj).attr('src') ?? '';
             results.push(createMangaTile({
                 id,
                 image,
@@ -32332,15 +32286,6 @@ exports.mangaSection = mangaSection;
 
 },{"./languageSettings":228}],228:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.languageSettings = exports.getEnabledLanguages = exports.LanguageSections = void 0;
 class ChapterLanguageSelectionClass {
@@ -32377,18 +32322,17 @@ class ChapterLanguageSelectionClass {
         return this.Sections.map(Sections => Sections.id);
     }
     getName(sectionsEnum) {
-        var _a, _b;
-        return (_b = (_a = this.Sections.filter(Sections => Sections.id == sectionsEnum)[0]) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : '';
+        return this.Sections.filter(Sections => Sections.id == sectionsEnum)[0]?.name ?? '';
     }
     getDefault() {
         return this.Sections.filter(Sections => Sections.default).map(Sections => Sections.id);
     }
 }
 exports.LanguageSections = new ChapterLanguageSelectionClass();
-const getEnabledLanguages = (stateManager) => __awaiter(void 0, void 0, void 0, function* () {
-    const enabled_chapter_languages = yield stateManager.retrieve('enabled_chapter_languages');
+const getEnabledLanguages = async (stateManager) => {
+    const enabled_chapter_languages = await stateManager.retrieve('enabled_chapter_languages');
     return enabled_chapter_languages != undefined && enabled_chapter_languages.length > 0 ? enabled_chapter_languages : exports.LanguageSections.getDefault();
-});
+};
 exports.getEnabledLanguages = getEnabledLanguages;
 const languageSettings = (stateManager) => {
     return createSection({
@@ -32397,20 +32341,19 @@ const languageSettings = (stateManager) => {
         rows: () => {
             return Promise.all([
                 (0, exports.getEnabledLanguages)(stateManager),
-            ]).then((values) => __awaiter(void 0, void 0, void 0, function* () {
-                var _a;
+            ]).then(async (values) => {
                 return [
                     createSelect({
                         id: 'enabled_chapter_languages',
                         label: 'Language Settings',
                         options: exports.LanguageSections.getIDList(),
                         displayLabel: option => exports.LanguageSections.getName(option),
-                        value: (_a = values[0]) !== null && _a !== void 0 ? _a : [],
+                        value: values[0] ?? [],
                         allowsMultiselect: true,
                         minimumOptionCount: 1,
                     }),
                 ];
-            }));
+            });
         }
     });
 };
@@ -32419,102 +32362,88 @@ exports.languageSettings = languageSettings;
 },{}],229:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImageInterceptor = void 0;
 const PoorMansCanvas_1 = require("../PoorMansCanvas");
 const shuffle_seed_1 = require("shuffle-seed");
 class ImageInterceptor {
-    interceptRequest(request) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return request;
-        });
+    async interceptRequest(request) {
+        return request;
     }
-    interceptResponse(response) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Request status: ${response.status}`);
-            if (response.request.url.includes('&shuffle=false')) {
-                console.log('Image is not shuffled');
-            }
-            else if (response.request.url.includes('&shuffle=true')) {
-                console.log('response caught');
-                const sliceSize = 200;
-                const seed = 'stay';
-                const byteArray = createByteArray(response.rawData);
-                const image = (0, PoorMansCanvas_1.createImage)(byteArray);
-                const canvas = (0, PoorMansCanvas_1.createCanvas)();
-                canvas.setSize(image.width, image.height);
-                const totalParts = Math.ceil(image.width / sliceSize) *
-                    Math.ceil(image.height / sliceSize);
-                // console.log(`totalParts: ${totalParts}`)
-                // console.log(`image.width: ${image.width}`)
-                // console.log(`image.height: ${image.height}`)
-                const noOfHoriSeg = Math.ceil(image.width / sliceSize);
-                const someArray = [];
-                console.log('Begin someArray loop');
-                // for loop to get all slides
-                for (let i = 0; i < totalParts; i++) {
-                    const row = Math.floor(i / noOfHoriSeg);
-                    const slice = {
-                        x: (i - row * noOfHoriSeg) * sliceSize,
-                        y: row * sliceSize,
-                        width: 0,
-                        height: 0,
-                    };
-                    slice.width =
-                        sliceSize -
-                            (slice.x + sliceSize <= image.width
-                                ? 0
-                                : slice.x + sliceSize - image.width);
-                    slice.height =
-                        sliceSize -
-                            (slice.y + sliceSize <= image.height
-                                ? 0
-                                : slice.y + sliceSize - image.height);
-                    if (!someArray[slice.width - slice.height]) {
-                        someArray[slice.width - slice.height] = [];
-                    }
-                    someArray[slice.width - slice.height].push(slice);
+    async interceptResponse(response) {
+        console.log(`Request status: ${response.status}`);
+        if (response.request.url.includes('&shuffle=false')) {
+            console.log('Image is not shuffled');
+        }
+        else if (response.request.url.includes('&shuffle=true')) {
+            console.log('response caught');
+            const sliceSize = 200;
+            const seed = 'stay';
+            const byteArray = createByteArray(response.rawData);
+            const image = (0, PoorMansCanvas_1.createImage)(byteArray);
+            const canvas = (0, PoorMansCanvas_1.createCanvas)();
+            canvas.setSize(image.width, image.height);
+            const totalParts = Math.ceil(image.width / sliceSize) *
+                Math.ceil(image.height / sliceSize);
+            // console.log(`totalParts: ${totalParts}`)
+            // console.log(`image.width: ${image.width}`)
+            // console.log(`image.height: ${image.height}`)
+            const noOfHoriSeg = Math.ceil(image.width / sliceSize);
+            const someArray = [];
+            console.log('Begin someArray loop');
+            // for loop to get all slides
+            for (let i = 0; i < totalParts; i++) {
+                const row = Math.floor(i / noOfHoriSeg);
+                const slice = {
+                    x: (i - row * noOfHoriSeg) * sliceSize,
+                    y: row * sliceSize,
+                    width: 0,
+                    height: 0,
+                };
+                slice.width =
+                    sliceSize -
+                        (slice.x + sliceSize <= image.width
+                            ? 0
+                            : slice.x + sliceSize - image.width);
+                slice.height =
+                    sliceSize -
+                        (slice.y + sliceSize <= image.height
+                            ? 0
+                            : slice.y + sliceSize - image.height);
+                if (!someArray[slice.width - slice.height]) {
+                    someArray[slice.width - slice.height] = [];
                 }
-                console.log('finished someArray loop');
-                // console.log(JSON.stringify(someArray))
-                // console.log(`Some Array Length: ${someArray[0]!.length}`)
-                console.log('Begin drawing loop');
-                for (const property in someArray) {
-                    const baseRangeArray = this.baseRange(0, 
-                    // @ts-ignore: Object is possibly 'null'.
-                    (_a = someArray[property]) === null || _a === void 0 ? void 0 : _a.length, 1, false);
-                    const shuffleInd = (0, shuffle_seed_1.unshuffle)(baseRangeArray, seed);
-                    // console.log(JSON.stringify(shuffleInd))
-                    // @ts-ignore: Object is possibly 'null'.
-                    const groups = this.getGroup(someArray[property]);
-                    // console.log(JSON.stringify(groups))
-                    // @ts-ignore: Object is possibly 'null'.
-                    for (const [key, slice] of someArray[property].entries()) {
-                        const s = shuffleInd[key];
-                        const row = Math.floor(s / groups.cols);
-                        const col = s - row * groups.cols;
-                        const x = col * slice.width;
-                        const y = row * slice.height;
-                        canvas.drawImage(image, groups.x + x, groups.y + y, slice.width, slice.height, slice.x, slice.y);
-                    }
-                }
-                console.log('finished drawing loop');
-                const encodedImg = canvas.encode('jpg');
-                response.rawData = createRawData(Buffer.from(encodedImg));
-                console.log('Completed without errors');
+                someArray[slice.width - slice.height].push(slice);
             }
-            return response;
-        });
+            console.log('finished someArray loop');
+            // console.log(JSON.stringify(someArray))
+            // console.log(`Some Array Length: ${someArray[0]!.length}`)
+            console.log('Begin drawing loop');
+            for (const property in someArray) {
+                const baseRangeArray = this.baseRange(0, 
+                // @ts-ignore: Object is possibly 'null'.
+                someArray[property]?.length, 1, false);
+                const shuffleInd = (0, shuffle_seed_1.unshuffle)(baseRangeArray, seed);
+                // console.log(JSON.stringify(shuffleInd))
+                // @ts-ignore: Object is possibly 'null'.
+                const groups = this.getGroup(someArray[property]);
+                // console.log(JSON.stringify(groups))
+                // @ts-ignore: Object is possibly 'null'.
+                for (const [key, slice] of someArray[property].entries()) {
+                    const s = shuffleInd[key];
+                    const row = Math.floor(s / groups.cols);
+                    const col = s - row * groups.cols;
+                    const x = col * slice.width;
+                    const y = row * slice.height;
+                    canvas.drawImage(image, groups.x + x, groups.y + y, slice.width, slice.height, slice.x, slice.y);
+                }
+            }
+            console.log('finished drawing loop');
+            const encodedImg = canvas.encode('jpg');
+            response.rawData = createRawData(Buffer.from(encodedImg));
+            console.log('Completed without errors');
+        }
+        return response;
     }
     // @ts-ignore
     getColsInGroup(slices) {

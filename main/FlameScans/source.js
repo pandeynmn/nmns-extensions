@@ -2382,15 +2382,6 @@ __exportStar(require("./RawData"), exports);
 },{"./Chapter":8,"./ChapterDetails":9,"./Constants":10,"./DynamicUI":26,"./HomeSection":27,"./Languages":28,"./Manga":29,"./MangaTile":30,"./MangaUpdate":31,"./PagedResults":32,"./RawData":33,"./RequestHeaders":34,"./RequestInterceptor":35,"./RequestManager":36,"./RequestObject":37,"./ResponseObject":38,"./SearchField":39,"./SearchRequest":40,"./SourceInfo":41,"./SourceManga":42,"./SourceStateManager":43,"./SourceTag":44,"./TagSection":45,"./TrackedManga":46,"./TrackedMangaChapterReadAction":47,"./TrackerActionQueue":48}],50:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FlameScans = exports.FlameScansInfo = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
@@ -2425,19 +2416,20 @@ class FlameScans extends paperback_extensions_common_1.Source {
             requestsPerSecond: 3,
             requestTimeout: 8000,
             interceptor: {
-                interceptRequest: (request) => __awaiter(this, void 0, void 0, function* () {
-                    var _a;
-                    request.headers = Object.assign(Object.assign({}, ((_a = request.headers) !== null && _a !== void 0 ? _a : {})), {
-                        'user-agent': userAgent,
-                        'referer': `${this.baseUrl}/`
-                    });
+                interceptRequest: async (request) => {
+                    request.headers = {
+                        ...(request.headers ?? {}),
+                        ...{
+                            'user-agent': userAgent,
+                            'referer': `${this.baseUrl}/`
+                        }
+                    };
                     return request;
-                }),
-                interceptResponse: (response) => __awaiter(this, void 0, void 0, function* () {
-                    var _b;
-                    response['fixedData'] = (_b = response.data) !== null && _b !== void 0 ? _b : Buffer.from(createByteArray(response.rawData)).toString();
+                },
+                interceptResponse: async (response) => {
+                    response['fixedData'] = response.data ?? Buffer.from(createByteArray(response.rawData)).toString();
                     return response;
-                })
+                }
             }
         });
         this.RETRY = 5;
@@ -2446,109 +2438,91 @@ class FlameScans extends paperback_extensions_common_1.Source {
     getMangaShareUrl(mangaId) {
         return `${this.baseUrl}/series/${mangaId}`;
     }
-    getMangaDetails(mangaId) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `${this.baseUrl}/series/${mangaId}`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(response.status);
-            const $ = this.cheerio.load((_a = response.data) !== null && _a !== void 0 ? _a : response['fixedData']);
-            return this.parser.parseMangaDetails($, mangaId);
+    async getMangaDetails(mangaId) {
+        const request = createRequestObject({
+            url: `${this.baseUrl}/series/${mangaId}`,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(response.status);
+        const $ = this.cheerio.load(response.data ?? response['fixedData']);
+        return this.parser.parseMangaDetails($, mangaId);
+    }
+    async getChapters(mangaId) {
+        const request = createRequestObject({
+            url: `${this.baseUrl}/series/${mangaId}`,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(response.status);
+        const $ = this.cheerio.load(response.data ?? response['fixedData']);
+        return this.parser.parseChapters($, mangaId, this);
+    }
+    async getChapterDetails(mangaId, chapterId) {
+        const request = createRequestObject({
+            url: chapterId,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(response.status);
+        const $ = this.cheerio.load(response.data ?? response['fixedData']);
+        return this.parser.parseChapterDetails($, mangaId, chapterId);
+    }
+    async getSearchResults(query, metadata) {
+        let page = metadata?.page ?? 1;
+        if (page == -1)
+            return createPagedResults({ results: [], metadata: { page: -1 } });
+        const param = `/page/${page}/?s=${(query.title ?? '').replace(/\s/g, '+')}`;
+        const request = createRequestObject({
+            url: `${this.baseUrl}`,
+            method: 'GET',
+            param,
+        });
+        const data = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(data.status);
+        const $ = this.cheerio.load(data.data);
+        const manga = this.parser.parseSearchResults($);
+        page++;
+        if (manga.length < 10)
+            page = -1;
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
         });
     }
-    getChapters(mangaId) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `${this.baseUrl}/series/${mangaId}`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(response.status);
-            const $ = this.cheerio.load((_a = response.data) !== null && _a !== void 0 ? _a : response['fixedData']);
-            return this.parser.parseChapters($, mangaId, this);
+    async getHomePageSections(sectionCallback) {
+        const request = createRequestObject({
+            url: `${this.baseUrl}`,
+            method: 'GET',
         });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(response.status);
+        const $ = this.cheerio.load(response.data ?? response['fixedData']);
+        this.parser.parseHomeSections($, sectionCallback);
     }
-    getChapterDetails(mangaId, chapterId) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: chapterId,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(response.status);
-            const $ = this.cheerio.load((_a = response.data) !== null && _a !== void 0 ? _a : response['fixedData']);
-            return this.parser.parseChapterDetails($, mangaId, chapterId);
+    async getViewMoreItems(homepageSectionId, metadata) {
+        let page = metadata?.page ?? 1;
+        if (page == -1)
+            return createPagedResults({ results: [], metadata: { page: -1 } });
+        let url = '';
+        if (homepageSectionId == '2')
+            url = `${this.baseUrl}/series/?page=${page}&order=update`;
+        else if (homepageSectionId == '3')
+            url = `${this.baseUrl}/series/?page=${page}?status=&type=&order=popular`;
+        const request = createRequestObject({
+            url,
+            method: 'GET',
         });
-    }
-    getSearchResults(query, metadata) {
-        var _a, _b;
-        return __awaiter(this, void 0, void 0, function* () {
-            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
-            if (page == -1)
-                return createPagedResults({ results: [], metadata: { page: -1 } });
-            const param = `/page/${page}/?s=${((_b = query.title) !== null && _b !== void 0 ? _b : '').replace(/\s/g, '+')}`;
-            const request = createRequestObject({
-                url: `${this.baseUrl}`,
-                method: 'GET',
-                param,
-            });
-            const data = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(data.status);
-            const $ = this.cheerio.load(data.data);
-            const manga = this.parser.parseSearchResults($);
-            page++;
-            if (manga.length < 10)
-                page = -1;
-            return createPagedResults({
-                results: manga,
-                metadata: { page: page },
-            });
-        });
-    }
-    getHomePageSections(sectionCallback) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function* () {
-            const request = createRequestObject({
-                url: `${this.baseUrl}`,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(response.status);
-            const $ = this.cheerio.load((_a = response.data) !== null && _a !== void 0 ? _a : response['fixedData']);
-            this.parser.parseHomeSections($, sectionCallback);
-        });
-    }
-    getViewMoreItems(homepageSectionId, metadata) {
-        var _a, _b;
-        return __awaiter(this, void 0, void 0, function* () {
-            let page = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.page) !== null && _a !== void 0 ? _a : 1;
-            if (page == -1)
-                return createPagedResults({ results: [], metadata: { page: -1 } });
-            let url = '';
-            if (homepageSectionId == '2')
-                url = `${this.baseUrl}/series/?page=${page}&order=update`;
-            else if (homepageSectionId == '3')
-                url = `${this.baseUrl}/series/?page=${page}?status=&type=&order=popular`;
-            const request = createRequestObject({
-                url,
-                method: 'GET',
-            });
-            const response = yield this.requestManager.schedule(request, this.RETRY);
-            this.CloudFlareError(response.status);
-            const $ = this.cheerio.load((_b = response.data) !== null && _b !== void 0 ? _b : response['fixedData']);
-            const manga = this.parser.parseViewMore($);
-            page++;
-            if (manga.length < 10)
-                page = -1;
-            return createPagedResults({
-                results: manga,
-                metadata: { page: page },
-            });
+        const response = await this.requestManager.schedule(request, this.RETRY);
+        this.CloudFlareError(response.status);
+        const $ = this.cheerio.load(response.data ?? response['fixedData']);
+        const manga = this.parser.parseViewMore($);
+        page++;
+        if (manga.length < 10)
+            page = -1;
+        return createPagedResults({
+            results: manga,
+            metadata: { page: page },
         });
     }
     /**
@@ -2556,9 +2530,8 @@ class FlameScans extends paperback_extensions_common_1.Source {
      * Copied from Madara.ts made by gamefuzzy
      */
     convertTime(timeAgo) {
-        var _a;
         let time;
-        let trimmed = Number(((_a = /\d*/.exec(timeAgo)) !== null && _a !== void 0 ? _a : [])[0]);
+        let trimmed = Number((/\d*/.exec(timeAgo) ?? [])[0]);
         trimmed = trimmed == 0 && timeAgo.includes('a') ? 1 : trimmed;
         if (timeAgo.includes('mins') || timeAgo.includes('minutes') || timeAgo.includes('minute')) {
             time = new Date(Date.now() - trimmed * 60000);
@@ -2603,11 +2576,10 @@ exports.Parser = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
 class Parser {
     parseMangaDetails($, mangaId) {
-        var _a, _b, _c, _d, _e, _f, _g;
-        const title = (_a = $('.thumb img').attr('alt')) !== null && _a !== void 0 ? _a : '';
-        const image = (_b = $('.thumb img').attr('src')) !== null && _b !== void 0 ? _b : '';
-        const desc = (_c = $('.entry-content.entry-content-single').text().trim()) !== null && _c !== void 0 ? _c : '';
-        const rating = Number((_d = $('div.extra-info div.mobile-rt div.numscore').html()) !== null && _d !== void 0 ? _d : '0');
+        const title = $('.thumb img').attr('alt') ?? '';
+        const image = $('.thumb img').attr('src') ?? '';
+        const desc = $('.entry-content.entry-content-single').text().trim() ?? '';
+        const rating = Number($('div.extra-info div.mobile-rt div.numscore').html() ?? '0');
         let status = paperback_extensions_common_1.MangaStatus.UNKNOWN, author = '', artist = '';
         for (const obj of $('.left-side .imptdt').toArray()) {
             const item = $('i', obj).text().trim();
@@ -2621,7 +2593,7 @@ class Parser {
         }
         const arrayTags = [];
         for (const obj of $('.mgen a').toArray()) {
-            const id = (_f = (_e = $(obj).attr('href')) === null || _e === void 0 ? void 0 : _e.replace('https://flamescans.org/genres/', '').replace('/', '')) !== null && _f !== void 0 ? _f : '';
+            const id = $(obj).attr('href')?.replace('https://flamescans.org/genres/', '').replace('/', '') ?? '';
             const label = $(obj).text().trim();
             if (!id || !label)
                 continue;
@@ -2632,7 +2604,7 @@ class Parser {
             id: mangaId,
             titles: [this.encodeText(title)],
             image,
-            rating: (_g = Number(rating)) !== null && _g !== void 0 ? _g : 0,
+            rating: Number(rating) ?? 0,
             status,
             artist,
             author,
@@ -2654,12 +2626,11 @@ class Parser {
         return paperback_extensions_common_1.MangaStatus.ONGOING;
     }
     parseChapters($, mangaId, source) {
-        var _a, _b;
         const chapters = [];
         const arrChapters = $('#chapterlist li').toArray().reverse();
         for (const item of arrChapters) {
-            const id = (_a = $('a', item).attr('href')) !== null && _a !== void 0 ? _a : '';
-            const chapNum = Number((_b = $(item).attr('data-num')) !== null && _b !== void 0 ? _b : '0');
+            const id = $('a', item).attr('href') ?? '';
+            const chapNum = Number($(item).attr('data-num') ?? '0');
             const time = source.convertTime($('.chapterdate', item).text().trim());
             chapters.push(createChapter({
                 id,
@@ -2689,12 +2660,11 @@ class Parser {
         });
     }
     parseSearchResults($) {
-        var _a, _b, _c, _d;
         const results = [];
         for (const item of $('.listupd .bsx').toArray()) {
-            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _b !== void 0 ? _b : '';
-            const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
+            const id = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? '';
+            const title = $('a', item).attr('title') ?? '';
+            const image = $('img', item).attr('src') ?? '';
             results.push(createMangaTile({
                 id,
                 image,
@@ -2704,12 +2674,11 @@ class Parser {
         return results;
     }
     parseViewMore($) {
-        var _a, _b, _c, _d;
         const more = [];
         for (const item of $('.listupd .bsx').toArray()) {
-            const id = (_b = (_a = $('a', item).attr('href')) === null || _a === void 0 ? void 0 : _a.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _b !== void 0 ? _b : '';
-            const title = (_c = $('a', item).attr('title')) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = $('img', item).attr('src')) !== null && _d !== void 0 ? _d : '';
+            const id = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? '';
+            const title = $('a', item).attr('title') ?? '';
+            const image = $('img', item).attr('src') ?? '';
             more.push(createMangaTile({
                 id,
                 image,
@@ -2719,7 +2688,6 @@ class Parser {
         return more;
     }
     parseHomeSections($, sectionCallback) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         const section1 = createHomeSection({ id: '1', title: 'Popular', type: paperback_extensions_common_1.HomeSectionType.featured, });
         const section2 = createHomeSection({ id: '2', title: 'Latest', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
         const section3 = createHomeSection({ id: '3', title: 'Popular Titles', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
@@ -2730,10 +2698,10 @@ class Parser {
         const arrPopular = $('.pop-list-desktop .bsx').toArray();
         const arrLatest = $('.latest-updates .bsx').toArray();
         for (const obj of arrFeatured) {
-            const id = (_b = (_a = $(obj).attr('href')) === null || _a === void 0 ? void 0 : _a.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _b !== void 0 ? _b : '';
+            const id = $(obj).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? '';
             const title = $('.tt', obj).text().trim();
-            const strImg = (_c = $('.bigbanner', obj).attr('style')) !== null && _c !== void 0 ? _c : '';
-            const image = (_d = strImg.substring(23, strImg.length - 3)) !== null && _d !== void 0 ? _d : '';
+            const strImg = $('.bigbanner', obj).attr('style') ?? '';
+            const image = strImg.substring(23, strImg.length - 3) ?? '';
             featured.push(createMangaTile({
                 id,
                 image,
@@ -2743,9 +2711,9 @@ class Parser {
         section1.items = featured;
         sectionCallback(section1);
         for (const item of arrLatest) {
-            const id = (_f = (_e = $('a', item).attr('href')) === null || _e === void 0 ? void 0 : _e.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _f !== void 0 ? _f : '';
-            const title = (_g = $('a', item).attr('title')) !== null && _g !== void 0 ? _g : '';
-            const image = (_h = $('img', item).attr('src')) !== null && _h !== void 0 ? _h : '';
+            const id = $('a', item).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? '';
+            const title = $('a', item).attr('title') ?? '';
+            const image = $('img', item).attr('src') ?? '';
             latest.push(createMangaTile({
                 id,
                 image,
@@ -2755,10 +2723,10 @@ class Parser {
         section2.items = latest;
         sectionCallback(section2);
         for (const obj of arrPopular) {
-            const id = (_k = (_j = $('a', obj).attr('href')) === null || _j === void 0 ? void 0 : _j.replace('https://flamescans.org/series/', '').replace('/', '')) !== null && _k !== void 0 ? _k : '';
-            const title = (_l = $('a', obj).attr('title')) !== null && _l !== void 0 ? _l : '';
-            const subText = (_m = $('.status', obj).text()) !== null && _m !== void 0 ? _m : '';
-            const image = (_o = $('img', obj).attr('src')) !== null && _o !== void 0 ? _o : '';
+            const id = $('a', obj).attr('href')?.replace('https://flamescans.org/series/', '').replace('/', '') ?? '';
+            const title = $('a', obj).attr('title') ?? '';
+            const subText = $('.status', obj).text() ?? '';
+            const image = $('img', obj).attr('src') ?? '';
             popular.push(createMangaTile({
                 id,
                 image,
