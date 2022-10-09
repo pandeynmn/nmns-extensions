@@ -62,7 +62,7 @@ export class Parser {
 
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
-        for (const item of $('.py-4 img').toArray()) {
+        for (const item of $('img.max-w-full').toArray()) {
             const page = $(item).attr('data-cfsrc') ?? $(item).attr('src')
             pages.push(page)
         }
