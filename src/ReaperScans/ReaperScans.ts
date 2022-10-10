@@ -178,7 +178,7 @@ export class ReaperScans extends Source {
         else page++
 
         return createPagedResults({
-            results: this.parser.parseViewMore($),
+            results: result,
             metadata: { page: page },
         })
     }
