@@ -509,7 +509,7 @@ class ReaperScans extends paperback_extensions_common_1.Source {
         else
             page++;
         return createPagedResults({
-            results: this.parser.parseViewMore($),
+            results: result,
             metadata: { page: page },
         });
     }
@@ -746,7 +746,7 @@ class Parser {
         }
         section1.items = featured;
         sectionCallback(section1);
-        for (const obj of $('.space-y-4:nth-child(3) div div.space-x-2').toArray()) {
+        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div').first()).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
             const image = $('div a img', obj).attr('data-cfsrc') ?? '';
