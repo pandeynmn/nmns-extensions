@@ -368,7 +368,7 @@ const parser_1 = require("./parser");
 const helper_1 = require("./helper");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.3',
+    version: '3.0.4',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -653,6 +653,8 @@ class Parser {
             const id = $('a', obj).attr('href')?.split('/').pop() ?? '';
             const name = $('.font-medium', obj).text().trim();
             const date_str = $('div.mt-2 div p').text().toLowerCase().replace('released', '').trim();
+            if (!id)
+                continue;
             chapters.push(createChapter({
                 id,
                 mangaId,
@@ -713,6 +715,8 @@ class Parser {
             const title = $('div a img', obj).attr('alt') ?? '';
             const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
             const subtitle = $('dd', obj).text().trim() ?? '';
+            if (!id)
+                continue;
             more.push(createMangaTile({
                 id,
                 image,
@@ -733,7 +737,7 @@ class Parser {
             const image = $('div a img', obj).attr('data-cfsrc') ?? '';
             const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? '';
             const type = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? '';
-            if (title.length < 1)
+            if (!id)
                 continue;
             if (type == 'novel')
                 continue;
@@ -746,12 +750,14 @@ class Parser {
         }
         section1.items = featured;
         sectionCallback(section1);
-        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div').first()).toArray()) {
+        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
             const image = $('div a img', obj).attr('data-cfsrc') ?? '';
             const subtitle = $('p', $('a.text-center', obj).first()).text().trim();
-            if (title.length < 1)
+            if (!id)
+                continue;
+            if ($('div a', obj).attr('href').includes('novel'))
                 continue;
             latest.push(createMangaTile({
                 id,
