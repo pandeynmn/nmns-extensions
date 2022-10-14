@@ -21,7 +21,7 @@ import { Helper } from './helper'
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
 
 export const ReaperScansInfo: SourceInfo = {
-    version: '3.0.4',
+    version: '3.0.5',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -122,20 +122,23 @@ export class ReaperScans extends Source {
 
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
-        // const page = metadata?.page ?? 1
-        // if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+        const page = metadata?.page ?? 1
+        if (page == -1 || !query ) return createPagedResults({ results: [], metadata: { page: -1 } })
 
-        // const request = createRequestObject({
-        //     url: `${this.baseUrl}/swordflake/comics`,
-        //     method: 'GET',
-        // })
-        // const response = await this.requestManager.schedule(request, this.RETRY)
-        // this.CloudFlareError(response.status)
+        const request = createRequestObject({
+            url: `${this.baseUrl}`,
+            method: 'GET',
+        })
+        const response = await this.requestManager.schedule(request, this.RETRY)
+        this.CloudFlareError(response.status)
+        const $ = this.cheerio.load(response.data)
 
-        // const json = JSON.parse(response.data)
+        const json = await this.helper.createSearchRequestObject($, query , this)
+        const result = this.parser.parseSearchResults(this.cheerio.load(json.effects.html))
+
         return createPagedResults({
-            results: [],
-            metadata: {},
+            results: result,
+            metadata: { page: -1 },
         })
     }
 
@@ -165,7 +168,7 @@ export class ReaperScans extends Source {
         if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
 
         const request = createRequestObject({
-            url: `${this.baseUrl}/comics?page=${page.toString()}`,
+            url: `${this.baseUrl}/latest/comics?page=${page.toString()}`,
             method: 'GET',
         })
 

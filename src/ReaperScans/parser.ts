@@ -77,48 +77,39 @@ export class Parser {
         })
     }
 
-    parseSearchResults(json: any, query: SearchRequest): MangaTile[] {
+    parseSearchResults($: any): MangaTile[] {
         const results: MangaTile[] = []
-        // const title = (query.title ?? '').toLowerCase()
+        for (const item of $('ul li').toArray()) {
+            const id = $('a', item).attr('href')?.split('/').pop() ?? ''
+            const title = $('a img', item).attr('alt')
+            const subtitle = $('a p span:nth-child(3)', item).text().trim()
+            const image = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src')
 
-        // const arrayTags = new Set<string>()
+            if ($(item).text() == 'Novels') break
+            if (!id) continue
 
-        // for (const item of query.includedTags ?? []) {
-        //     arrayTags.add(item.id)
-        // }
-
-        // for (const item of json.data.comics) {
-        //     let skip = arrayTags.size > 0 ? true : false
-        //     if (item.name.toLowerCase().includes(title)) {
-        //         for (const tag of item.genres) {
-        //             if (arrayTags.has(tag.slug)) {
-        //                 skip = false
-        //             }
-        //         }
-        //         if (!skip) {
-        //             results.push(
-        //                 createMangaTile({
-        //                     id: item.slug,
-        //                     image: item.cover.horizontal,
-        //                     title: createIconText({ text: this.encodeText(item.name) }),
-        //                     subtitleText: createIconText({ text: this.encodeText(`Chapter ${item.chapter_count}`) }),
-        //                 })
-        //             )
-        //         }
-        //     }
-        // }
+            results.push(
+                createMangaTile({
+                    id,
+                    image,
+                    title: createIconText({ text: this.encodeText(title) }),
+                    subtitleText: createIconText({ text: this.encodeText(subtitle) }),
+                })
+            )
+        }
         return results
     }
 
     parseViewMore($: any): MangaTile[] {
         const more: MangaTile[] = []
-        for (const obj of $('li.col-span-1').toArray()) {
+        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
-            const subtitle = $('dd', obj).text().trim() ?? ''
+            const image = $('div a img', obj).attr('data-cfsrc') ?? ''
+            const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? ''
 
             if (!id) continue
+            if($('div a', obj).attr('href').includes('novel'))  continue
 
             more.push(
                 createMangaTile({
@@ -133,7 +124,7 @@ export class Parser {
     }
 
     parseHomeSections($: any, sectionCallback: (section: HomeSection) => void): void {
-        const section1 = createHomeSection({ id: '1', title: 'Today\'s Picks', type: HomeSectionType.singleRowNormal,})
+        const section1 = createHomeSection({ id: '1', title: 'Today\'s Picks', type: HomeSectionType.featured,})
         const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: HomeSectionType.singleRowNormal,view_more: true,})
 
         const featured: MangaTile[] = []
