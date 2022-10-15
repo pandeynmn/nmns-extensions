@@ -21,7 +21,7 @@ import { Helper } from './helper'
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
 
 export const ReaperScansInfo: SourceInfo = {
-    version: '3.0.7',
+    version: '3.0.8',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
