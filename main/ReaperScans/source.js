@@ -368,7 +368,7 @@ const parser_1 = require("./parser");
 const helper_1 = require("./helper");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.6',
+    version: '3.0.7',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -700,7 +700,7 @@ class Parser {
     parseChapterDetails($, mangaId, id) {
         const pages = [];
         for (const item of $('img.max-w-full').toArray()) {
-            const page = $(item).attr('data-cfsrc') ?? $(item).attr('src');
+            const page = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20');
             pages.push(page);
         }
         return createChapterDetails({
