@@ -45,7 +45,7 @@ export class Parser {
         for (const obj of $('li', list).toArray()) {
             const id = $('a', obj).attr('href')?.split('/').pop() ?? ''
             const name = $('.font-medium', obj).text().trim()
-            const date_str = $('div.mt-2 div p').text().toLowerCase().replace('released', '').trim()
+            const date_str = $('div.mt-2 div p', obj).text().toLowerCase().replace('released', '').trim()
 
             if (!id) continue
 
