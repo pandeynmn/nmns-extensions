@@ -15,7 +15,7 @@ import {
 export class Parser {
     parseMangaDetails($: any, mangaId: string): Manga {
         const title = $('.min-h-80 img').attr('alt') ?? ''
-        const image = $('.min-h-80 img').attr('data-cfsrc') ?? ''
+        const image = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src')
         const desc = $('p.prose').text().trim()      ?? ''
 
         return createManga({
@@ -105,7 +105,7 @@ export class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? ''
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
             const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? ''
 
             if (!id) continue
@@ -133,7 +133,7 @@ export class Parser {
         for (const obj of $('ul.grid-cols-2 li').toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? ''
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
             const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? ''
             const type  = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? ''
 
@@ -155,7 +155,7 @@ export class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? ''
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
             const subtitle = $('p', $('a.text-center', obj).first()).text().trim()
 
             if (!id) continue
