@@ -368,7 +368,7 @@ const parser_1 = require("./parser");
 const helper_1 = require("./helper");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.5',
+    version: '3.0.6',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -656,7 +656,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 class Parser {
     parseMangaDetails($, mangaId) {
         const title = $('.min-h-80 img').attr('alt') ?? '';
-        const image = $('.min-h-80 img').attr('data-cfsrc') ?? '';
+        const image = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src');
         const desc = $('p.prose').text().trim() ?? '';
         return createManga({
             id: mangaId,
@@ -735,7 +735,7 @@ class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? '';
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
             const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? '';
             if (!id)
                 continue;
@@ -758,7 +758,7 @@ class Parser {
         for (const obj of $('ul.grid-cols-2 li').toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? '';
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
             const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? '';
             const type = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? '';
             if (!id)
@@ -777,7 +777,7 @@ class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? '';
+            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
             const subtitle = $('p', $('a.text-center', obj).first()).text().trim();
             if (!id)
                 continue;
