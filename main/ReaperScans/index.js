@@ -366,9 +366,10 @@ exports.ReaperScans = exports.ReaperScansInfo = void 0;
 const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const helper_1 = require("./helper");
+const settings_1 = require("./settings");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.8',
+    version: '3.0.9',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -392,6 +393,7 @@ class ReaperScans extends paperback_extensions_common_1.Source {
     constructor() {
         super(...arguments);
         this.baseUrl = REAPERSCANS_DOMAIN;
+        this.stateManager = createSourceStateManager({});
         this.requestManager = createRequestManager({
             requestsPerSecond: 3,
             requestTimeout: 8000,
@@ -414,6 +416,15 @@ class ReaperScans extends paperback_extensions_common_1.Source {
         this.RETRY = 5;
         this.parser = new parser_1.Parser();
         this.helper = new helper_1.Helper();
+    }
+    async getSourceMenu() {
+        return Promise.resolve(createSection({
+            id: 'main',
+            header: 'Source Settings',
+            rows: async () => [
+                await (0, settings_1.contentSettings)(this.stateManager),
+            ]
+        }));
     }
     getMangaShareUrl(mangaId) {
         return `${this.baseUrl}/comics/${mangaId}`;
@@ -524,7 +535,8 @@ class ReaperScans extends paperback_extensions_common_1.Source {
         const response = await this.requestManager.schedule(request, this.RETRY);
         this.CloudFlareError(response.status);
         const $ = this.cheerio.load(response.data);
-        this.parser.parseHomeSections($, sectionCallback);
+        const rowtype = await (0, settings_1.getRowBool)(this.stateManager);
+        this.parser.parseHomeSections($, rowtype, sectionCallback);
     }
     /**
      * Parses a time string from a Madara source into a Date object.
@@ -584,7 +596,7 @@ class ReaperScans extends paperback_extensions_common_1.Source {
 }
 exports.ReaperScans = ReaperScans;
 
-},{"./helper":48,"./parser":49,"paperback-extensions-common":4}],48:[function(require,module,exports){
+},{"./helper":48,"./parser":49,"./settings":50,"paperback-extensions-common":4}],48:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Helper = void 0;
@@ -750,9 +762,10 @@ class Parser {
         }
         return more;
     }
-    parseHomeSections($, sectionCallback) {
+    parseHomeSections($, rowtype, sectionCallback) {
+        const type = rowtype ? paperback_extensions_common_1.HomeSectionType.singleRowLarge : paperback_extensions_common_1.HomeSectionType.singleRowNormal;
         const section1 = createHomeSection({ id: '1', title: 'Today\'s Picks', type: paperback_extensions_common_1.HomeSectionType.featured, });
-        const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: paperback_extensions_common_1.HomeSectionType.singleRowNormal, view_more: true, });
+        const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: type, view_more: true, });
         const featured = [];
         const latest = [];
         for (const obj of $('ul.grid-cols-2 li').toArray()) {
@@ -801,5 +814,53 @@ class Parser {
 }
 exports.Parser = Parser;
 
-},{"paperback-extensions-common":4}]},{},[47])(47)
+},{"paperback-extensions-common":4}],50:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.contentSettings = exports.getRowBool = void 0;
+const getRowBool = async (stateManager) => {
+    return await stateManager.retrieve('row_type') ?? false;
+};
+exports.getRowBool = getRowBool;
+const contentSettings = (stateManager) => {
+    return createNavigationButton({
+        id: 'content_settings',
+        value: '',
+        label: 'Content Settings',
+        form: createForm({
+            onSubmit: (values) => {
+                return Promise.all([
+                    stateManager.store('row_type', values.row_type),
+                ]).then();
+            },
+            validate: () => {
+                return Promise.resolve(true);
+            },
+            sections: () => {
+                return Promise.resolve([
+                    createSection({
+                        id: 'content',
+                        footer: 'Change latest row type from normal to large.\nRefresh the discover page after changing the setting.',
+                        rows: () => {
+                            return Promise.all([
+                                (0, exports.getRowBool)(stateManager),
+                            ]).then(async (values) => {
+                                return [
+                                    createSwitch({
+                                        id: 'row_type',
+                                        label: 'Display Large Rows',
+                                        value: values[0]
+                                    })
+                                ];
+                            });
+                        }
+                    })
+                ]);
+            }
+        })
+    });
+};
+exports.contentSettings = contentSettings;
+
+},{}]},{},[47])(47)
 });
