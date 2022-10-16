@@ -13,15 +13,21 @@ import {
     TagType,
     TagSection,
     Tag,
+    Section,
+    SourceStateManager,
 } from 'paperback-extensions-common'
 
 import { Parser } from './parser'
 import { Helper } from './helper'
+import {
+    contentSettings,
+    getRowBool
+} from './settings'
 
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
 
 export const ReaperScansInfo: SourceInfo = {
-    version: '3.0.8',
+    version: '3.0.9',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -45,6 +51,7 @@ const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) Appl
 
 export class ReaperScans extends Source {
     baseUrl = REAPERSCANS_DOMAIN
+    stateManager: SourceStateManager = createSourceStateManager({})
     requestManager = createRequestManager({
         requestsPerSecond: 3,
         requestTimeout: 8000,
@@ -71,6 +78,16 @@ export class ReaperScans extends Source {
     RETRY = 5
     parser = new Parser()
     helper = new Helper()
+
+    override async getSourceMenu(): Promise<Section> {
+        return Promise.resolve(createSection({
+            id: 'main',
+            header: 'Source Settings',
+            rows: async () => [
+                await contentSettings(this.stateManager),
+            ]
+        }))
+    }
 
     override getMangaShareUrl(mangaId: string): string {
         return `${this.baseUrl}/comics/${mangaId}`
@@ -192,12 +209,12 @@ export class ReaperScans extends Source {
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
-
         this.CloudFlareError(response.status)
-
         const $ = this.cheerio.load(response.data)
 
-        this.parser.parseHomeSections($, sectionCallback)
+        const rowtype = await getRowBool(this.stateManager)
+
+        this.parser.parseHomeSections($, rowtype, sectionCallback)
     }
 
     /**
