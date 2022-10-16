@@ -123,9 +123,11 @@ export class Parser {
         return more
     }
 
-    parseHomeSections($: any, sectionCallback: (section: HomeSection) => void): void {
+    parseHomeSections($: any, rowtype: boolean, sectionCallback: (section: HomeSection) => void): void {
+        const type: HomeSectionType = rowtype ? HomeSectionType.singleRowLarge : HomeSectionType.singleRowNormal
+
         const section1 = createHomeSection({ id: '1', title: 'Today\'s Picks', type: HomeSectionType.featured,})
-        const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: HomeSectionType.singleRowNormal,view_more: true,})
+        const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: type, view_more: true,})
 
         const featured: MangaTile[] = []
         const latest  : MangaTile[] = []
