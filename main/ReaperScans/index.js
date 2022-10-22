@@ -369,7 +369,7 @@ const helper_1 = require("./helper");
 const settings_1 = require("./settings");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.9',
+    version: '3.0.10',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -609,14 +609,14 @@ class Helper {
         const jsonObj = JSON.parse(requestInfo);
         const serverMemo = jsonObj.serverMemo ?? '';
         const fingerprint = jsonObj.fingerprint ?? '';
-        const updates = JSON.parse(`[{"type":"callMethod","payload":{"id":"9jhcg","method":"gotoPage","params":[${page.toString()},"page"]}}]`);
+        const updates = JSON.parse(`[{"type":"callMethod","payload":{"id":"${(Math.random() + 1).toString(36).substring(8)}","method":"gotoPage","params":[${page.toString()},"page"]}}]`);
         const body = {
             'fingerprint': fingerprint,
             'serverMemo': serverMemo,
             'updates': updates
         };
         const request = createRequestObject({
-            url: `${source.baseUrl}/livewire/message/frontend.comic-chapters-list`,
+            url: `${source.baseUrl}/livewire/message/${fingerprint.name ?? 'fingerprint.was_none'}`,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -627,7 +627,10 @@ class Helper {
         });
         const response = await source.requestManager.schedule(request, source.RETRY);
         source.CloudFlareError(response.status);
-        return JSON.parse(response.data);
+        const json = JSON.parse(response.data);
+        if (!json || !json.effects || !json.effects.html)
+            throw new Error('\n(ReaperScans) -> Chapter request returned no data. Contact support.\n');
+        return json;
     }
     async createSearchRequestObject($, query, source) {
         const csrf = $('meta[name=csrf-token]').attr('content');
@@ -637,14 +640,14 @@ class Helper {
         const jsonObj = JSON.parse(requestInfo);
         const serverMemo = jsonObj.serverMemo ?? '';
         const fingerprint = jsonObj.fingerprint ?? '';
-        const updates = JSON.parse(`[{"type":"syncInput","payload":{"id":"03r6","name":"query","value":"${query.title?.toLowerCase()}"}}]`);
+        const updates = JSON.parse(`[{"type":"syncInput","payload":{"id":"${(Math.random() + 1).toString(36).substring(8)}","name":"query","value":"${query.title?.toLowerCase()}"}}]`);
         const body = {
             'fingerprint': fingerprint,
             'serverMemo': serverMemo,
             'updates': updates
         };
         const request = createRequestObject({
-            url: `${source.baseUrl}/livewire/message/frontend.global-search`,
+            url: `${source.baseUrl}/livewire/message/${fingerprint.name ?? 'fingerprint.was_none'}`,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -655,7 +658,10 @@ class Helper {
         });
         const response = await source.requestManager.schedule(request, source.RETRY);
         source.CloudFlareError(response.status);
-        return JSON.parse(response.data);
+        const json = JSON.parse(response.data);
+        if (!json || !json.effects || !json.effects.html)
+            throw new Error('\n(ReaperScans) -> Search request returned no data. Contact support.\n');
+        return json;
     }
 }
 exports.Helper = Helper;
