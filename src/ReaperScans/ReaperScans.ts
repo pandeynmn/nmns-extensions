@@ -27,7 +27,7 @@ import {
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
 
 export const ReaperScansInfo: SourceInfo = {
-    version: '3.0.10',
+    version: '3.0.11',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
