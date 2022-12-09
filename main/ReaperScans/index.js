@@ -372,7 +372,7 @@ const helper_1 = require("./helper");
 const settings_1 = require("./settings");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.11',
+    version: '3.0.12',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -720,7 +720,7 @@ class Parser {
     }
     parseChapterDetails($, mangaId, id) {
         const pages = [];
-        for (const item of $('p.py-4 img').toArray()) {
+        for (const item of $('img.max-w-full').toArray()) {
             const page = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20');
             const page_substring_which_may_break = page.substring(page.indexOf('https:'));
             pages.push(page_substring_which_may_break);
