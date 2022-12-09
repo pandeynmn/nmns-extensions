@@ -31959,9 +31959,6 @@ module.exports = function whichTypedArray(value) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaReaderInterceptor = void 0;
 class MangaReaderInterceptor {
-    constructor(interceptors) {
-        this.interceptors = interceptors;
-    }
     async interceptRequest(request) {
         return request;
     }
@@ -31970,6 +31967,9 @@ class MangaReaderInterceptor {
             response = await interceptor.interceptResponse(response);
         }
         return response;
+    }
+    constructor(interceptors) {
+        this.interceptors = interceptors;
     }
 }
 exports.MangaReaderInterceptor = MangaReaderInterceptor;
