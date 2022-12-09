@@ -65,9 +65,10 @@ export class Parser {
 
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
-        for (const item of $('img.max-w-full').toArray()) {
+        for (const item of $('p.py-4 img').toArray()) {
             const page = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20')
-            pages.push(page)
+            const page_substring_which_may_break = page.substring(page.indexOf('https:'))
+            pages.push(page_substring_which_may_break)
         }
         return createChapterDetails({
             id,
