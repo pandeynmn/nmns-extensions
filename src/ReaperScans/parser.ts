@@ -15,7 +15,8 @@ import {
 export class Parser {
     parseMangaDetails($: any, mangaId: string): Manga {
         const title = $('.min-h-80 img').attr('alt') ?? ''
-        const image = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src')
+        const image_str = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src')
+        const image = image_str.substring(image_str.indexOf('https:') ?? 0)
         const desc = $('p.prose').text().trim()      ?? ''
 
         return createManga({
@@ -66,9 +67,9 @@ export class Parser {
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
         for (const item of $('img.max-w-full').toArray()) {
-            const page = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20')
-            const page_substring_which_may_break = page.substring(page.indexOf('https:'))
-            pages.push(page_substring_which_may_break)
+            const page_str = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20')
+            const page = page_str.substring(page_str.indexOf('https:') ?? 0)
+            pages.push(page)
         }
         return createChapterDetails({
             id,
@@ -82,13 +83,15 @@ export class Parser {
         const results: MangaTile[] = []
         for (const item of $('ul li').toArray()) {
             const id = $('a', item).attr('href')?.split('/').pop() ?? ''
-            const title = $('a img', item).attr('alt')
-            const subtitle = $('a p span:nth-child(3)', item).text().trim()
-            const image = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src')
 
             if ($(item).text() == 'Novels') break
             if (!id) continue
-
+            
+            const title = $('a img', item).attr('alt')
+            const subtitle = $('a p span:nth-child(3)', item).text().trim()
+            const image_str = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src') ?? ''
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
+            
             results.push(
                 createMangaTile({
                     id,
@@ -106,7 +109,8 @@ export class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
             const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? ''
 
             if (!id) continue
@@ -136,7 +140,8 @@ export class Parser {
         for (const obj of $('ul.grid-cols-2 li').toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
             const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? ''
             const type  = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? ''
 
@@ -158,7 +163,8 @@ export class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
             const subtitle = $('p', $('a.text-center', obj).first()).text().trim()
 
             if (!id) continue
