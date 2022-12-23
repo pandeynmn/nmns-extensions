@@ -372,7 +372,7 @@ const helper_1 = require("./helper");
 const settings_1 = require("./settings");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.12',
+    version: '3.0.13',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -677,7 +677,8 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 class Parser {
     parseMangaDetails($, mangaId) {
         const title = $('.min-h-80 img').attr('alt') ?? '';
-        const image = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src');
+        const image_str = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src');
+        const image = image_str.substring(image_str.indexOf('https:') ?? 0);
         const desc = $('p.prose').text().trim() ?? '';
         return createManga({
             id: mangaId,
@@ -721,9 +722,9 @@ class Parser {
     parseChapterDetails($, mangaId, id) {
         const pages = [];
         for (const item of $('img.max-w-full').toArray()) {
-            const page = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20');
-            const page_substring_which_may_break = page.substring(page.indexOf('https:'));
-            pages.push(page_substring_which_may_break);
+            const page_str = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20');
+            const page = page_str.substring(page_str.indexOf('https:') ?? 0);
+            pages.push(page);
         }
         return createChapterDetails({
             id,
@@ -736,13 +737,14 @@ class Parser {
         const results = [];
         for (const item of $('ul li').toArray()) {
             const id = $('a', item).attr('href')?.split('/').pop() ?? '';
-            const title = $('a img', item).attr('alt');
-            const subtitle = $('a p span:nth-child(3)', item).text().trim();
-            const image = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src');
             if ($(item).text() == 'Novels')
                 break;
             if (!id)
                 continue;
+            const title = $('a img', item).attr('alt');
+            const subtitle = $('a p span:nth-child(3)', item).text().trim();
+            const image_str = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src') ?? '';
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0);
             results.push(createMangaTile({
                 id,
                 image,
@@ -757,7 +759,8 @@ class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0);
             const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? '';
             if (!id)
                 continue;
@@ -781,7 +784,8 @@ class Parser {
         for (const obj of $('ul.grid-cols-2 li').toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0);
             const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? '';
             const type = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? '';
             if (!id)
@@ -800,7 +804,8 @@ class Parser {
         for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
-            const image = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
+            const image = image_str.substring(image_str.indexOf('https:') ?? 0);
             const subtitle = $('p', $('a.text-center', obj).first()).text().trim();
             if (!id)
                 continue;
