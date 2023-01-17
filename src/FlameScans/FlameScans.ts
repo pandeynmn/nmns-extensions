@@ -20,7 +20,7 @@ import { Parser } from './parser'
 const FS_DOMAIN = 'https://flamescans.org'
 
 export const FlameScansInfo: SourceInfo = {
-    version: '2.0.5',
+    version: '2.0.6',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -71,7 +71,7 @@ export class FlameScans extends Source {
     RETRY = 5
     parser = new Parser()
 
-    getMangaShareUrl(mangaId: string): string {
+    override getMangaShareUrl(mangaId: string): string {
         return `${this.baseUrl}/series/${mangaId}`
     }
 
@@ -88,7 +88,7 @@ export class FlameScans extends Source {
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const request = createRequestObject({
-            url: `${this.baseUrl}/abc/series/${mangaId}`,
+            url: `${this.baseUrl}/series/${mangaId}`,
             method: 'GET',
         })
 
@@ -100,7 +100,7 @@ export class FlameScans extends Source {
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const request = createRequestObject({
-            url: chapterId,
+            url:  `${this.baseUrl}/${chapterId}`,
             method: 'GET',
         })
 
