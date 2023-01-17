@@ -2391,7 +2391,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const FS_DOMAIN = 'https://flamescans.org';
 exports.FlameScansInfo = {
-    version: '2.0.5',
+    version: '2.0.6',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -2453,7 +2453,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
     }
     async getChapters(mangaId) {
         const request = createRequestObject({
-            url: `${this.baseUrl}/abc/series/${mangaId}`,
+            url: `${this.baseUrl}/series/${mangaId}`,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, this.RETRY);
@@ -2463,7 +2463,7 @@ class FlameScans extends paperback_extensions_common_1.Source {
     }
     async getChapterDetails(mangaId, chapterId) {
         const request = createRequestObject({
-            url: chapterId,
+            url: `${this.baseUrl}/${chapterId}`,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, this.RETRY);
@@ -2632,11 +2632,11 @@ class Parser {
         const chapters = [];
         const arrChapters = $('#chapterlist li').toArray().reverse();
         for (const item of arrChapters) {
-            const id = $('a', item).attr('href') ?? '';
+            const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop() ?? '';
             const chapNum = Number($(item).attr('data-num') ?? '0');
             const time = source.convertTime($('.chapterdate', item).text().trim());
             chapters.push(createChapter({
-                id,
+                id: this.trimId(id),
                 mangaId,
                 name: `Chapter ${chapNum.toString()}`,
                 chapNum,
@@ -2665,7 +2665,7 @@ class Parser {
     parseSearchResults($) {
         const results = [];
         for (const item of $('.listupd .bsx').toArray()) {
-            const id = $('a', item).attr('href')?.split("series")[1].replace(/^\/|\/$/g, '') ?? '';
+            const id = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? '';
             const title = $('a', item).attr('title') ?? '';
             const image = $('img', item).attr('src') ?? '';
             results.push(createMangaTile({
@@ -2679,7 +2679,7 @@ class Parser {
     parseViewMore($) {
         const more = [];
         for (const item of $('.listupd .bsx').toArray()) {
-            const id = $('a', item).attr('href')?.split("series")[1].replace(/^\/|\/$/g, '') ?? '';
+            const id = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? '';
             const title = $('a', item).attr('title') ?? '';
             const image = $('img', item).attr('src') ?? '';
             more.push(createMangaTile({
@@ -2701,13 +2701,12 @@ class Parser {
         const arrPopular = $('.pop-list-desktop .bsx').toArray();
         const arrLatest = $('.latest-updates .bsx').toArray();
         for (const obj of arrFeatured) {
-            const id = $(obj).attr('href')?.split("series")[1].replace(/^\/|\/$/g, '') ?? '';
-            console.log(id);
+            const id = $(obj).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? '';
             const title = $('.tt', obj).text().trim();
             const strImg = $('.bigbanner', obj).attr('style') ?? '';
             const image = strImg.substring(23, strImg.length - 3) ?? '';
             featured.push(createMangaTile({
-                id,
+                id: this.trimId(id),
                 image,
                 title: createIconText({ text: this.encodeText(title) }),
             }));
@@ -2715,11 +2714,11 @@ class Parser {
         section1.items = featured;
         sectionCallback(section1);
         for (const item of arrLatest) {
-            const id = $('a', item).attr('href')?.split("series")[1].replace(/^\/|\/$/g, '') ?? '';
+            const id = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? '';
             const title = $('a', item).attr('title') ?? '';
             const image = $('img', item).attr('src') ?? '';
             latest.push(createMangaTile({
-                id,
+                id: this.trimId(id),
                 image,
                 title: createIconText({ text: this.encodeText(title) }),
             }));
@@ -2727,12 +2726,12 @@ class Parser {
         section2.items = latest;
         sectionCallback(section2);
         for (const obj of arrPopular) {
-            const id = $('a', obj).attr('href')?.split("series")[1].replace(/^\/|\/$/g, '') ?? '';
+            const id = $('a', obj).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? '';
             const title = $('a', obj).attr('title') ?? '';
             const subText = $('.status', obj).text() ?? '';
             const image = $('img', obj).attr('src') ?? '';
             popular.push(createMangaTile({
-                id,
+                id: this.trimId(id),
                 image,
                 title: createIconText({ text: this.encodeText(title) }),
                 subtitleText: createIconText({ text: subText }),
@@ -2740,6 +2739,13 @@ class Parser {
         }
         section3.items = popular;
         sectionCallback(section3);
+    }
+    trimId(id) {
+        const idSplit = id.split('-');
+        if (Number(idSplit[0])) {
+            return idSplit.slice(1).join('-');
+        }
+        return id;
     }
     encodeText(str) {
         return str.replace(/&#([0-9]{1,4});/gi, function (_, numStr) {
