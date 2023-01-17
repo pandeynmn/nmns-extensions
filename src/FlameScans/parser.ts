@@ -62,13 +62,13 @@ export class Parser {
         const chapters: Chapter[] = []
         const arrChapters = $('#chapterlist li').toArray().reverse()
         for (const item of arrChapters) {
-            const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop() ?? ''
+            const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop().replace(/()\d+-|\/$|^\//g, '') ?? ''
             const chapNum = Number($(item).attr('data-num') ?? '0')
 
             const time = source.convertTime($('.chapterdate', item).text().trim())
             chapters.push(
                 createChapter({
-                    id: this.trimId(id),
+                    id,
                     mangaId,
                     name: `Chapter ${chapNum.toString()}`,
                     chapNum,
@@ -102,7 +102,7 @@ export class Parser {
         const results: MangaTile[] = []
 
         for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? ''
+            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             results.push(
@@ -119,7 +119,7 @@ export class Parser {
     parseViewMore($: any): MangaTile[] {
         const more: MangaTile[] = []
         for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? ''
+            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             more.push(
@@ -147,13 +147,13 @@ export class Parser {
         const arrLatest   = $('.latest-updates .bsx').toArray()
 
         for (const obj of arrFeatured) {
-            const id     = $(obj).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? ''
+            const id     = $(obj).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title  = $('.tt', obj).text().trim()
             const strImg = $('.bigbanner', obj).attr('style') ?? ''
             const image  = strImg.substring(23, strImg.length - 3) ?? ''
             featured.push(
                 createMangaTile({
-                    id: this.trimId(id),
+                    id,
                     image,
                     title: createIconText({ text: this.encodeText(title) }),
                 })
@@ -164,12 +164,12 @@ export class Parser {
 
 
         for (const item of arrLatest) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? ''
+            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             latest.push(
                 createMangaTile({
-                    id: this.trimId(id),
+                    id,
                     image,
                     title: createIconText({ text: this.encodeText(title) }),
                 })
@@ -180,13 +180,13 @@ export class Parser {
         sectionCallback(section2)
 
         for (const obj of arrPopular) {
-            const id      = $('a', obj).attr('href')?.split('series')[1].replace(/^\/|\/$/g, '') ?? ''
+            const id      = $('a', obj).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title   = $('a', obj).attr('title') ?? ''
             const subText = $('.status', obj).text() ?? ''
             const image   = $('img', obj).attr('src') ?? ''
             popular.push(
                 createMangaTile({
-                    id: this.trimId(id),
+                    id,
                     image,
                     title: createIconText({ text: this.encodeText(title) }),
                     subtitleText: createIconText({ text: subText }),
@@ -195,14 +195,6 @@ export class Parser {
         }
         section3.items = popular
         sectionCallback(section3)
-    }
-
-    trimId(id: string): string {
-        const idSplit = id.split('-')
-        if (Number(idSplit[0])) {
-            return idSplit.slice(1).join('-')
-        }
-        return id
     }
 
     encodeText(str: string) {
