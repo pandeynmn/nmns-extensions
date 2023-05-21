@@ -2391,7 +2391,7 @@ const paperback_extensions_common_1 = require("paperback-extensions-common");
 const parser_1 = require("./parser");
 const FS_DOMAIN = 'https://flamescans.org';
 exports.FlameScansInfo = {
-    version: '2.0.7',
+    version: '2.0.8',
     name: 'FlameScans',
     description: 'Extension that pulls manga from Flame Scans.',
     author: 'NmN',
@@ -2631,14 +2631,23 @@ class Parser {
     parseChapters($, mangaId, source) {
         const chapters = [];
         const arrChapters = $('#chapterlist li').toArray().reverse();
+        let backupChapNum = 0;
         for (const item of arrChapters) {
             const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop().replace(/()\d+-|\/$|^\//g, '') ?? '';
-            const chapNum = Number($(item).attr('data-num') ?? '0');
             const time = source.convertTime($('.chapterdate', item).text().trim());
+            const name = $('span.chapternum', item)
+                .text()
+                .replaceAll('\n', ' ')
+                .trim();
+            let chapNum = Number(name.split(' ')[1] ?? '-1');
+            if (chapNum)
+                backupChapNum = chapNum;
+            else
+                chapNum = ++backupChapNum;
             chapters.push(createChapter({
                 id,
                 mangaId,
-                name: `Chapter ${chapNum.toString()}`,
+                name,
                 chapNum,
                 time,
                 langCode: paperback_extensions_common_1.LanguageCode.ENGLISH,
@@ -2648,7 +2657,7 @@ class Parser {
     }
     parseChapterDetails($, mangaId, id) {
         const pages = [];
-        const chapterList = $('#readerarea p img').toArray();
+        const chapterList = $('#readerarea img').toArray();
         for (const obj of chapterList) {
             const imageUrl = $(obj).attr('src');
             if (!imageUrl)
