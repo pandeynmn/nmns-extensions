@@ -61,16 +61,28 @@ export class Parser {
     parseChapters($: any, mangaId: string, source: any): Chapter[] {
         const chapters: Chapter[] = []
         const arrChapters = $('#chapterlist li').toArray().reverse()
+
+        let backupChapNum = 0
         for (const item of arrChapters) {
             const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop().replace(/()\d+-|\/$|^\//g, '') ?? ''
-            const chapNum = Number($(item).attr('data-num') ?? '0')
 
             const time = source.convertTime($('.chapterdate', item).text().trim())
+
+            const name = $('span.chapternum', item)
+                .text()
+                .replaceAll('\n', ' ')
+                .trim()
+                
+            let chapNum = Number(name.split(' ')[1] ?? '-1')
+            if (chapNum)
+                backupChapNum = chapNum
+            else 
+                chapNum = ++backupChapNum
             chapters.push(
                 createChapter({
                     id,
                     mangaId,
-                    name: `Chapter ${chapNum.toString()}`,
+                    name,
                     chapNum,
                     time,
                     langCode: LanguageCode.ENGLISH,
@@ -83,7 +95,7 @@ export class Parser {
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
 
-        const chapterList = $('#readerarea p img').toArray()
+        const chapterList = $('#readerarea img').toArray()
         for (const obj of chapterList) {
             const imageUrl = $(obj).attr('src')
             if (!imageUrl) continue
