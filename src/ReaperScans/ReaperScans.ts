@@ -53,7 +53,7 @@ export class ReaperScans extends Source {
     baseUrl = REAPERSCANS_DOMAIN
     stateManager: SourceStateManager = createSourceStateManager({})
     requestManager = createRequestManager({
-        requestsPerSecond: 3,
+        requestsPerSecond: 6,
         requestTimeout: 8000,
         interceptor: {
             interceptRequest: async (request: Request): Promise<Request> => {
