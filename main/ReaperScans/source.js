@@ -372,7 +372,7 @@ const helper_1 = require("./helper");
 const settings_1 = require("./settings");
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com';
 exports.ReaperScansInfo = {
-    version: '3.0.13',
+    version: '3.0.14',
     name: 'ReaperScans',
     description: 'New Reaperscans source.',
     author: 'NmN',
@@ -398,7 +398,7 @@ class ReaperScans extends paperback_extensions_common_1.Source {
         this.baseUrl = REAPERSCANS_DOMAIN;
         this.stateManager = createSourceStateManager({});
         this.requestManager = createRequestManager({
-            requestsPerSecond: 3,
+            requestsPerSecond: 6,
             requestTimeout: 8000,
             interceptor: {
                 interceptRequest: async (request) => {
@@ -606,7 +606,7 @@ exports.Helper = void 0;
 class Helper {
     async createChapterRequestObject($, page, source) {
         const csrf = $('meta[name=csrf-token]').attr('content');
-        const requestInfo = $('div.pb-4 div').attr('wire:initial-data');
+        const requestInfo = $('div.kipivsx7pscp div').attr('wire:initial-data');
         if (requestInfo === undefined || csrf === undefined)
             return {};
         const jsonObj = JSON.parse(requestInfo);
@@ -704,7 +704,7 @@ class Parser {
         const list = $('ul[role=list]').first();
         for (const obj of $('li', list).toArray()) {
             const id = $('a', obj).attr('href')?.split('/').pop() ?? '';
-            const name = $('.font-medium', obj).text().trim();
+            const name = $('p.i78jv85kl3qu', obj).text().trim();
             const date_str = $('div.mt-2 div p', obj).text().toLowerCase().replace('released', '').trim();
             if (!id)
                 continue;
@@ -721,7 +721,7 @@ class Parser {
     }
     parseChapterDetails($, mangaId, id) {
         const pages = [];
-        for (const item of $('img.max-w-full').toArray()) {
+        for (const item of $('img.vpr74vvq5d7').toArray()) {
             const page_str = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20');
             const page = page_str.substring(page_str.indexOf('https:') ?? 0);
             pages.push(page);
@@ -781,7 +781,7 @@ class Parser {
         const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: type, view_more: true, });
         const featured = [];
         const latest = [];
-        for (const obj of $('ul.grid-cols-2 li').toArray()) {
+        for (const obj of $('ul.myq7amaiu3wa li').toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
             const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
@@ -801,7 +801,7 @@ class Parser {
         }
         section1.items = featured;
         sectionCallback(section1);
-        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
+        for (const obj of $('div.dl0s41y1gwhb', $('div.myq7amaiu3wa')).toArray()) {
             const id = $('div a', obj).attr('href')?.split('/').pop() ?? '';
             const title = $('div a img', obj).attr('alt') ?? '';
             const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src');
