@@ -45,7 +45,7 @@ export class Parser {
         const list = $('ul[role=list]').first()
         for (const obj of $('li', list).toArray()) {
             const id = $('a', obj).attr('href')?.split('/').pop() ?? ''
-            const name = $('p.i78jv85kl3qu', obj).text().trim()
+            const name = $('.font-medium', obj).text().trim()
             const date_str = $('div.mt-2 div p', obj).text().toLowerCase().replace('released', '').trim()
 
             if (!id) continue
@@ -66,7 +66,7 @@ export class Parser {
 
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
-        for (const item of $('img.vpr74vvq5d7').toArray()) {
+        for (const item of $('img.max-w-full').toArray()) {
             const page_str = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20')
             const page = page_str.substring(page_str.indexOf('https:') ?? 0)
             pages.push(page)
@@ -137,7 +137,7 @@ export class Parser {
         const featured: MangaTile[] = []
         const latest  : MangaTile[] = []
 
-        for (const obj of $('ul.myq7amaiu3wa li').toArray()) {
+        for (const obj of $('ul.grid-cols-2 li').toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
             const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
@@ -160,7 +160,7 @@ export class Parser {
         section1.items = featured
         sectionCallback(section1)
 
-        for (const obj of $('div.dl0s41y1gwhb', $('div.myq7amaiu3wa')).toArray()) {
+        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
             const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
             const title = $('div a img', obj).attr('alt') ?? ''
             const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')

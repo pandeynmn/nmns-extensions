@@ -4,7 +4,7 @@ export class Helper {
 
     async createChapterRequestObject($: any, page: number, source: any): Promise<any> {
         const csrf = $('meta[name=csrf-token]').attr('content')
-        const requestInfo  = $('div.kipivsx7pscp div').attr('wire:initial-data')
+        const requestInfo  = $('div.pb-4 div').attr('wire:initial-data')
         if (requestInfo === undefined || csrf === undefined) return {}
 
         const jsonObj = JSON.parse(requestInfo)
