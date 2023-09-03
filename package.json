@@ -11,15 +11,6 @@
         "debug": "paperback logcat --ip=100.64.9.88",
         "test": "node_modules/.bin/mocha --timeout 300000 -r ts-node/register src/**/*.test.ts"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Paperback-iOS/extensions-official.git"
-    },
-    "license": "GPL-3.0-or-later",
-    "bugs": {
-        "url": "https://github.com/Paperback-iOS/extensions-official/issues"
-    },
-    "homepage": "https://github.com/Paperback-iOS/extensions-official#readme",
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.1",
         "@types/cheerio": "^0.22.21",
@@ -38,8 +29,5 @@
         "entities": "^4.4.0",
         "nodemon": "^2.0.22",
         "ts-node": "^10.2.1"
-    },
-    "browser": {
-        "image-encode": "./node_modules/image-encode/index.js"
     }
 }
