@@ -21,7 +21,7 @@ import {
 import { Parser } from './parser'
 import { Helper } from './helper'
 
-const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
+const REAPERSCANS_DOMAIN = 'https://reapercomics.com'
 export const ReaperScansInfo: SourceInfo = {
     version: '4.0.0',
     name: 'ReaperScans',
