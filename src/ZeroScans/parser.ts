@@ -147,7 +147,6 @@ export class Parser {
                     image: item.banner,
                     title: this.encodeText(item.comic.name),
                     mangaId: item.comic.slug,
-                    subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
                 })
             )
         }
@@ -159,7 +158,6 @@ export class Parser {
                     image: !item.cover.vertical ? item.cover.horizontal : item.cover.vertical ?? '',
                     title: this.encodeText(item.name),
                     mangaId: item.slug,
-                    subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
                 })
             )
         }
@@ -171,7 +169,6 @@ export class Parser {
                     image: !item.cover.full ? item.cover.icon : item.cover.full ?? '',
                     title: this.encodeText(item.name),
                     mangaId: item.slug,
-                    subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
                 })
             )
         }

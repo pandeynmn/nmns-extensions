@@ -21,10 +21,10 @@ import {
 
 import { Parser } from './parser'
 
-const ZEROSCANS_DOMAIN = 'https://zeroscans.com'
+const ZEROSCANS_DOMAIN = 'https://zscans.com'
 
 export const ZeroScansInfo: SourceInfo = {
-    version: '2.0.0',
+    version: '2.0.1',
     name: 'Zero Scans',
     icon: 'icon.png',
     author: 'NmN',
@@ -127,7 +127,7 @@ export class ZeroScans implements SearchResultsProviding, MangaProviding, Chapte
     }
 
     async createChapterRequest(numericId: string, page: number) : Promise<any> {
-        const url = `https://zeroscans.com/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`
+        const url = `${this.baseUrl}/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`
         const request = App.createRequest({
             url,
             method: 'GET',
@@ -142,7 +142,7 @@ export class ZeroScans implements SearchResultsProviding, MangaProviding, Chapte
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const request = App.createRequest({
-            url: `https://zeroscans.com/swordflake/comic/${mangaId}/chapters/${chapterId}`,
+            url: `${this.baseUrl}/swordflake/comic/${mangaId}/chapters/${chapterId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
