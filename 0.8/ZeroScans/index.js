@@ -463,9 +463,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ZeroScans = exports.ZeroScansInfo = void 0;
 const types_1 = require("@paperback/types");
 const parser_1 = require("./parser");
-const ZEROSCANS_DOMAIN = 'https://zeroscans.com';
+const ZEROSCANS_DOMAIN = 'https://zscans.com';
 exports.ZeroScansInfo = {
-    version: '2.0.0',
+    version: '2.0.1',
     name: 'Zero Scans',
     icon: 'icon.png',
     author: 'NmN',
@@ -550,7 +550,7 @@ class ZeroScans {
         return chapters;
     }
     async createChapterRequest(numericId, page) {
-        const url = `https://zeroscans.com/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`;
+        const url = `${this.baseUrl}/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`;
         const request = App.createRequest({
             url,
             method: 'GET',
@@ -564,7 +564,7 @@ class ZeroScans {
     }
     async getChapterDetails(mangaId, chapterId) {
         const request = App.createRequest({
-            url: `https://zeroscans.com/swordflake/comic/${mangaId}/chapters/${chapterId}`,
+            url: `${this.baseUrl}/swordflake/comic/${mangaId}/chapters/${chapterId}`,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, this.RETRY);
@@ -830,7 +830,6 @@ class Parser {
                 image: item.banner,
                 title: this.encodeText(item.comic.name),
                 mangaId: item.comic.slug,
-                subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
             }));
         }
         section1.items = featured;
@@ -840,7 +839,6 @@ class Parser {
                 image: !item.cover.vertical ? item.cover.horizontal : item.cover.vertical ?? '',
                 title: this.encodeText(item.name),
                 mangaId: item.slug,
-                subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
             }));
         }
         section2.items = latest;
@@ -850,7 +848,6 @@ class Parser {
                 image: !item.cover.full ? item.cover.icon : item.cover.full ?? '',
                 title: this.encodeText(item.name),
                 mangaId: item.slug,
-                subtitle: this.encodeText(`Chapter ${item.chapter_count}`),
             }));
         }
         section3.items = popular;
