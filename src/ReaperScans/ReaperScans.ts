@@ -3,33 +3,29 @@ import {
     ChapterDetails,
     ContentRating,
     HomeSection,
-    Manga,
     PagedResults,
     SearchRequest,
     Request,
     Response,
-    Source,
     SourceInfo,
-    TagType,
-    TagSection,
-    Tag,
-    Section,
+    SourceIntents,
+    SourceManga,
     SourceStateManager,
-} from 'paperback-extensions-common'
+    BadgeColor,
+    SearchResultsProviding,
+    MangaProviding,
+    ChapterProviding,
+    HomePageSectionsProviding,
+} from '@paperback/types'
 
 import { Parser } from './parser'
 import { Helper } from './helper'
-import {
-    contentSettings,
-    getRowBool
-} from './settings'
 
 const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
-
 export const ReaperScansInfo: SourceInfo = {
-    version: '3.0.15',
+    version: '4.0.0',
     name: 'ReaperScans',
-    description: 'New Reaperscans source.',
+    description: 'Reaperscans source for 0.8',
     author: 'NmN',
     authorWebsite: 'http://github.com/pandeynmm',
     icon: 'icon.png',
@@ -38,80 +34,68 @@ export const ReaperScansInfo: SourceInfo = {
     sourceTags: [
         {
             text: 'English',
-            type: TagType.GREY,
-        },
-        {
-            text: 'Cloudflare',
-            type: TagType.RED
+            type: BadgeColor.GREY,
         },
     ],
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 }
 
-const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
+const userAgent =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
 
-export class ReaperScans extends Source {
+
+export class ReaperScans implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     baseUrl = REAPERSCANS_DOMAIN
-    stateManager: SourceStateManager = createSourceStateManager({})
-    requestManager = createRequestManager({
-        requestsPerSecond: 6,
-        requestTimeout: 8000,
-        interceptor: {
-            interceptRequest: async (request: Request): Promise<Request> => {
-
-                request.headers = {
-                    ...(request.headers ?? {}),
-                    ...{
-                        'user-agent': userAgent,
-                        'referer': `${this.baseUrl}`
-                    }
-                }
-
-                return request
-            },
-
-            interceptResponse: async (response: Response): Promise<Response> => {
-                return response
-            }
-        }
-    })
-
+    stateManager: SourceStateManager = App.createSourceStateManager()
+    constructor(private cheerio: CheerioAPI) {}
     RETRY = 5
     parser = new Parser()
     helper = new Helper()
 
-    override async getSourceMenu(): Promise<Section> {
-        return Promise.resolve(createSection({
-            id: 'main',
-            header: 'Source Settings',
-            rows: async () => [
-                await contentSettings(this.stateManager),
-            ]
-        }))
-    }
+    requestManager = App.createRequestManager({
+        requestsPerSecond: 6,
+        requestTimeout: 8000,
+        interceptor: {
+            interceptRequest: async (request: Request): Promise<Request> => {
+                request.headers = {
+                    ...(request.headers ?? {}),
+                    ...{
+                        'user-agent': userAgent,
+                        referer: `${this.baseUrl}`,
+                    },
+                }
+                return request
+            },
+            interceptResponse: async (response: Response): Promise<Response> => {
+                return response
+            },
+        },
+    })
 
-    override getMangaShareUrl(mangaId: string): string {
+    getMangaShareUrl(mangaId: string): string {
         return `${this.baseUrl}/comics/${mangaId}`
     }
 
-    async getMangaDetails(mangaId: string): Promise<Manga> {
-        const request = createRequestObject({
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const request = App.createRequest({
             url: `${this.baseUrl}/comics/${mangaId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
+        this.checkResponseError(response)
         const $ = this.cheerio.load(response.data)
         return this.parser.parseMangaDetails($, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const chapters: Chapter[] = []
-        const request = createRequestObject({
+        const request = App.createRequest({
             url: `${this.baseUrl}/comics/${mangaId}`,
             method: 'GET',
         })
+
         const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
+        this.checkResponseError(response)
         const $ = this.cheerio.load(response.data)
 
         chapters.push(...this.parser.parseChapter($, mangaId, this))
@@ -124,11 +108,12 @@ export class ReaperScans extends Source {
             chapters.push(...page_data)
             page += 1
         } while (page_data.length > 0)
+
         return chapters
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const request = createRequestObject({
+        const request = App.createRequest({
             url: `${this.baseUrl}/comics/${mangaId}/chapters/${chapterId}`,
             method: 'GET',
         })
@@ -136,85 +121,51 @@ export class ReaperScans extends Source {
         const $ = this.cheerio.load(response.data)
         return this.parser.parseChapterDetails($, mangaId, chapterId)
     }
-
-
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
         const page = metadata?.page ?? 1
-        if (page == -1 || !query ) return createPagedResults({ results: [], metadata: { page: -1 } })
-
-        const request = createRequestObject({
+        if (page == -1 || !query) return App.createPagedResults({ results: [], metadata: { page: -1 } })
+        const request = App.createRequest({
             url: `${this.baseUrl}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
+        this.checkResponseError(response)
         const $ = this.cheerio.load(response.data)
-
-        const json = await this.helper.createSearchRequestObject($, query , this)
+        const json = await this.helper.createSearchRequestObject($, query, this)
         const result = this.parser.parseSearchResults(this.cheerio.load(json.effects.html))
-
-        return createPagedResults({
+        return App.createPagedResults({
             results: result,
             metadata: { page: -1 },
         })
     }
-
-    /*
-    override async getSearchTags():  Promise<TagSection[]> {
-        const request = createRequestObject({
-            url: `${this.baseUrl}/swordflake/comics`,
-            method: 'GET',
-        })
-
-        const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
-        const json = JSON.parse(response.data)
-
-        const genres: Tag[] = []
-        for (const item of json.data.genres) {
-            genres.push(createTag({ label: item.name, id: item.slug }))
-        }
-        const tagSections: TagSection[] = [createTagSection({ id: '0', label: 'Genres', tags: [] })]
-        return tagSections
-    }
-
-     */
-
-    override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
+    
+    async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         let page = metadata?.page ?? 1
-        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
-
-        const request = createRequestObject({
+        if (page == -1) return App.createPagedResults({ results: [], metadata: { page: -1 } })
+        const request = App.createRequest({
             url: `${this.baseUrl}/latest/comics?page=${page.toString()}`,
             method: 'GET',
         })
-
         const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
+        this.checkResponseError(response)
         const $ = this.cheerio.load(response.data)
-        const result =  this.parser.parseViewMore($)
-
-        if (result.length < 1)  page = -1
+        const result = this.parser.parseViewMore($)
+        if (result.length < 1) page = -1
         else page++
-
-        return createPagedResults({
+        return App.createPagedResults({
             results: result,
             metadata: { page: page },
         })
     }
-
-    override async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
-        const request = createRequestObject({
+    async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
+        const request = App.createRequest({
             url: `${this.baseUrl}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
-        this.CloudFlareError(response.status)
+        this.checkResponseError(response)
         const $ = this.cheerio.load(response.data)
-
-        const rowtype = await getRowBool(this.stateManager)
-
-        this.parser.parseHomeSections($, rowtype, sectionCallback)
+        this.parser.parseHomeSections($, false, sectionCallback)
     }
 
     /**
@@ -228,41 +179,46 @@ export class ReaperScans extends Source {
         if (date.includes('LESS THAN AN HOUR') || date.includes('JUST NOW')) {
             time = new Date(Date.now())
         } else if (date.includes('YEAR') || date.includes('YEARS')) {
-            time = new Date(Date.now() - (number * 31556952000))
+            time = new Date(Date.now() - number * 31556952000)
         } else if (date.includes('MONTH') || date.includes('MONTHS')) {
-            time = new Date(Date.now() - (number * 2592000000))
+            time = new Date(Date.now() - number * 2592000000)
         } else if (date.includes('WEEK') || date.includes('WEEKS')) {
-            time = new Date(Date.now() - (number * 604800000))
+            time = new Date(Date.now() - number * 604800000)
         } else if (date.includes('YESTERDAY')) {
             time = new Date(Date.now() - 86400000)
         } else if (date.includes('DAY') || date.includes('DAYS')) {
-            time = new Date(Date.now() - (number * 86400000))
+            time = new Date(Date.now() - number * 86400000)
         } else if (date.includes('HOUR') || date.includes('HOURS')) {
-            time = new Date(Date.now() - (number * 3600000))
+            time = new Date(Date.now() - number * 3600000)
         } else if (date.includes('MINUTE') || date.includes('MINUTES')) {
-            time = new Date(Date.now() - (number * 60000))
+            time = new Date(Date.now() - number * 60000)
         } else if (date.includes('SECOND') || date.includes('SECONDS')) {
-            time = new Date(Date.now() - (number * 1000))
+            time = new Date(Date.now() - number * 1000)
         } else {
             time = new Date(date)
         }
         return time
     }
 
-    override getCloudflareBypassRequest(): Request {
-        return createRequestObject({
+    async getCloudflareBypassRequest(): Promise<Request> {
+        return App.createRequest({
             url: this.baseUrl,
             method: 'GET',
             headers: {
-                'user-agent': userAgent,
-                'referer': `${this.baseUrl}/`
-            }
+                'user-agent':  await this.requestManager.getDefaultUserAgent(),
+                referer: `${this.baseUrl}/`,
+            },
         })
     }
 
-    CloudFlareError(status: any) {
-        if (status == 503) {
-            throw new Error('CLOUDFLARE BYPASS ERROR:\nPlease go to Settings > Sources > <The name of this source> and press Cloudflare Bypass')
+    checkResponseError(response: Response): void {
+        const status = response.status
+        switch (status) {
+            case 403:
+            case 503:
+                throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to the homepage of <${this.baseUrl}> and press the cloud icon.`)
+            case 404:
+                throw new Error(`The requested page ${response.request.url} was not found!`)
         }
     }
 }

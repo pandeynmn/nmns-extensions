@@ -2,206 +2,225 @@ import {
     Chapter,
     ChapterDetails,
     HomeSection,
-    HomeSectionType,
-    LanguageCode,
-    Manga,
-    MangaStatus,
-    MangaTile,
-    Tag,
+    SourceManga,
     TagSection,
-} from 'paperback-extensions-common'
+    Tag,
+    HomeSectionType,
+    PartialSourceManga,
+} from '@paperback/types'
 
 export class Parser {
-    parseMangaDetails($: any, mangaId: string): Manga {
-        const title  = $('.thumb img').attr('alt') ?? ''
-        const image  = $('.thumb img').attr('src') ?? ''
-        const desc   = $('.entry-content.entry-content-single').text().trim() ?? ''
+    parseMangaDetails($: any, mangaId: string): SourceManga {
+        const title = $('.thumb img').attr('alt') ?? ''
+        const image = $('.thumb img').attr('src') ?? ''
+        const desc = $('.entry-content.entry-content-single').text().trim() ?? ''
         const rating = Number($('div.extra-info div.mobile-rt div.numscore').html() ?? '0')
-        let   status = MangaStatus.UNKNOWN, author = '', artist = ''
-
+        let status = 'Unknown',
+            author = '',
+            artist = ''
         for (const obj of $('.left-side .imptdt').toArray()) {
-            const item = $('i' , obj).text().trim()
+            const item = $('i', obj).text().trim()
             const type = $('h1', obj).text().trim()
-            if      (type.toLowerCase().includes('status')) status = this.mangaStatus(item.toLowerCase())
+            if (type.toLowerCase().includes('status')) status = this.mangaStatus(item.toLowerCase())
             else if (type.toLowerCase().includes('author')) author = item
             else if (type.toLowerCase().includes('artist')) artist = item
         }
-
         const arrayTags: Tag[] = []
         for (const obj of $('.mgen a').toArray()) {
-            const id    = $(obj).attr('href')?.replace('https://flamescans.org/genres/', '').replace('/', '') ?? ''
+            const id = $(obj).attr('href')?.replace('https://flamescans.org/genres/', '').replace('/', '') ?? ''
             const label = $(obj).text().trim()
             if (!id || !label) continue
             arrayTags.push({ id: id, label: label })
         }
-        const tagSections: TagSection[] = [createTagSection({ id: '0', label: 'genres', tags: arrayTags.map((x) => createTag(x)) })]
-
-        return createManga({
+        const tagSections: TagSection[] = [App.createTagSection({ id: '0', label: 'genres', tags: arrayTags.map((x) => App.createTag(x)) })]
+        return App.createSourceManga({
             id: mangaId,
-            titles: [this.encodeText(title)],
-            image,
-            rating: Number(rating) ?? 0,
-            status,
-            artist,
-            author,
-            tags: tagSections,
-            desc: this.encodeText(desc),
+            mangaInfo: App.createMangaInfo({
+                titles: [this.encodeText(title)],
+                image,
+                rating: Number(rating) ?? 0,
+                status,
+                artist,
+                author,
+                tags: tagSections,
+                desc: this.encodeText(desc),
+            }),
         })
     }
 
-    mangaStatus(str: string) {
-        if (str.includes('ongoing'))   return MangaStatus.ONGOING
-        if (str.includes('complete'))  return MangaStatus.COMPLETED
-        if (str.includes('haitus'))    return MangaStatus.HIATUS
-        if (str.includes('cancelled')) return MangaStatus.ABANDONED
-        if (str.includes('coming'))    return MangaStatus.ONGOING
-        return MangaStatus.ONGOING
+    mangaStatus(str: string): string {
+        if (str.includes('ongoing')) return 'Ongoing'
+        if (str.includes('complete')) return 'Completed'
+        if (str.includes('hiatus')) return 'Hiatus'
+        if (str.includes('dropped')) return 'Abandoned'
+        if (str.includes('new')) return 'Ongoing'
+        return 'Ongoing'
     }
 
     parseChapters($: any, mangaId: string, source: any): Chapter[] {
         const chapters: Chapter[] = []
         const arrChapters = $('#chapterlist li').toArray().reverse()
-
         let backupChapNum = 0
         for (const item of arrChapters) {
-            const id = $('a', item).attr('href').replace(/\/$/, '').split('/').pop().replace(/()\d+-|\/$|^\//g, '') ?? ''
-
+            const id =
+                $('a', item)
+                    .attr('href')
+                    .replace(/\/$/, '')
+                    .split('/')
+                    .pop()
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
             const time = source.convertTime($('.chapterdate', item).text().trim())
-
-            const name = $('span.chapternum', item)
-                .text()
-                .replaceAll('\n', ' ')
-                .trim()
-                
+            const name = $('span.chapternum', item).text().replaceAll('\n', ' ').trim()
             let chapNum = Number(name.split(' ')[1] ?? '-1')
-            if (chapNum)
-                backupChapNum = chapNum
-            else 
-                chapNum = ++backupChapNum
+            if (chapNum) backupChapNum = chapNum
+            else chapNum = ++backupChapNum
             chapters.push(
-                createChapter({
+                App.createChapter({
                     id,
-                    mangaId,
                     name,
                     chapNum,
                     time,
-                    langCode: LanguageCode.ENGLISH,
+                    langCode: 'en',
                 })
             )
         }
         return chapters
     }
-
     parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
         const pages: string[] = []
-
         const chapterList = $('#readerarea img').toArray()
         for (const obj of chapterList) {
             const imageUrl = $(obj).attr('src')
             if (!imageUrl) continue
             pages.push(imageUrl.trim())
         }
-
-        return createChapterDetails({
+        return App.createChapterDetails({
             id,
             mangaId,
             pages,
-            longStrip: true,
         })
     }
-
-    parseSearchResults($: any): MangaTile[] {
-        const results: MangaTile[] = []
-
+    parseSearchResults($: any): PartialSourceManga[] {
+        const results: PartialSourceManga[] = []
         for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
+            const id =
+                $('a', item)
+                    .attr('href')
+                    ?.split('series')[1]
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             results.push(
-                createMangaTile({
-                    id,
+                App.createPartialSourceManga({
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: this.encodeText(title),
+                    mangaId: id,
+                    subtitle: undefined,
                 })
             )
         }
         return results
     }
-
-    parseViewMore($: any): MangaTile[] {
-        const more: MangaTile[] = []
+    parseViewMore($: any): PartialSourceManga[] {
+        const more: PartialSourceManga[] = []
         for (const item of $('.listupd .bsx').toArray()) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
+            const id =
+                $('a', item)
+                    .attr('href')
+                    ?.split('series')[1]
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             more.push(
-                createMangaTile({
-                    id,
+                App.createPartialSourceManga({
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: this.encodeText(title),
+                    mangaId: id,
+                    subtitle: undefined,
                 })
             )
         }
         return more
     }
-
     parseHomeSections($: any, sectionCallback: (section: HomeSection) => void): void {
-        const section1 = createHomeSection({ id: '1', title: 'Popular', type: HomeSectionType.featured,})
-        const section2 = createHomeSection({ id: '2', title: 'Latest', type: HomeSectionType.singleRowNormal, view_more: true,})
-        const section3 = createHomeSection({ id: '3', title: 'Popular Titles', type: HomeSectionType.singleRowNormal, view_more: true,})
-
-        const featured: MangaTile[] = []
-        const popular : MangaTile[] = []
-        const latest  : MangaTile[] = []
-
+        const section1 = App.createHomeSection({
+            id: '1',
+            title: 'Popular',
+            containsMoreItems: false,
+            type: HomeSectionType.featured,
+        })
+        const section2 = App.createHomeSection({
+            id: '2',
+            title: 'Latest',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        })
+        const section3 = App.createHomeSection({
+            id: '3',
+            title: 'Popular Titles',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        })
+        const featured: PartialSourceManga[] = []
+        const popular: PartialSourceManga[] = []
+        const latest: PartialSourceManga[] = []
         const arrFeatured = $('.desktop-slide').toArray()
-        const arrPopular  = $('.pop-list-desktop .bsx').toArray()
-        const arrLatest   = $('.latest-updates .bsx').toArray()
-
+        const arrPopular = $('.pop-list-desktop .bsx').toArray()
+        const arrLatest = $('.latest-updates .bsx').toArray()
         for (const obj of arrFeatured) {
-            const id     = $(obj).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
-            const title  = $('.tt', obj).text().trim()
+            const id =
+                $(obj)
+                    .attr('href')
+                    ?.split('series')[1]
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
+            const title = $('.tt', obj).text().trim()
             const strImg = $('.bigbanner', obj).attr('style') ?? ''
-            const image  = strImg.substring(23, strImg.length - 3) ?? ''
+            const image = strImg.substring(23, strImg.length - 3) ?? ''
             featured.push(
-                createMangaTile({
-                    id,
+                App.createPartialSourceManga({
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: this.encodeText(title),
+                    mangaId: id,
+                    subtitle: undefined,
                 })
             )
         }
         section1.items = featured
         sectionCallback(section1)
-
-
         for (const item of arrLatest) {
-            const id    = $('a', item).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
+            const id =
+                $('a', item)
+                    .attr('href')
+                    ?.split('series')[1]
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
             const title = $('a', item).attr('title') ?? ''
             const image = $('img', item).attr('src') ?? ''
             latest.push(
-                createMangaTile({
-                    id,
+                App.createPartialSourceManga({
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
+                    title: this.encodeText(title),
+                    mangaId: id,
+                    subtitle: undefined,
                 })
             )
         }
-
         section2.items = latest
         sectionCallback(section2)
-
         for (const obj of arrPopular) {
-            const id      = $('a', obj).attr('href')?.split('series')[1].replace(/()\d+-|\/$|^\//g, '') ?? ''
-            const title   = $('a', obj).attr('title') ?? ''
+            const id =
+                $('a', obj)
+                    .attr('href')
+                    ?.split('series')[1]
+                    .replace(/()\d+-|\/$|^\//g, '') ?? ''
+            const title = $('a', obj).attr('title') ?? ''
             const subText = $('.status', obj).text() ?? ''
-            const image   = $('img', obj).attr('src') ?? ''
+            const image = $('img', obj).attr('src') ?? ''
             popular.push(
-                createMangaTile({
-                    id,
+                App.createPartialSourceManga({
                     image,
-                    title: createIconText({ text: this.encodeText(title) }),
-                    subtitleText: createIconText({ text: subText }),
+                    title: this.encodeText(title),
+                    mangaId: id,
+                    subtitle: subText,
                 })
             )
         }
@@ -209,9 +228,9 @@ export class Parser {
         sectionCallback(section3)
     }
 
-    encodeText(str: string) {
-        return str.replace(/&#([0-9]{1,4});/gi, function(_, numStr) {
-            var num = parseInt(numStr, 10)
+    encodeText(str: string): string {
+        return str.replace(/&#([0-9]{1,4});/gi, (_, numStr) => {
+            const num = parseInt(numStr, 10)
             return String.fromCharCode(num)
         })
     }
