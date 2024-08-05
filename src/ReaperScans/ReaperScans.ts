@@ -16,24 +16,40 @@ import {
     MangaProviding,
     ChapterProviding,
     HomePageSectionsProviding,
-} from '@paperback/types'
+} from "@paperback/types"
 
-import { Parser } from './parser'
-import { Helper } from './helper'
+import { Parser } from "./parser"
+import { MangaItem } from "./types/MangaItem"
+import { CheerioAPI } from "cheerio/lib/load"
+import {
+    QueryData,
+    QueryResult,
+    RSChapterDetails,
+    RSCHapterDetailsData,
+    RSChapterList,
+    RSChapterListData,
+    RSMangaDetails,
+} from "./types"
 
-const REAPERSCANS_DOMAIN = 'https://reaperscans.com'
+const REAPERSCANS_DOMAIN = "https://reaperscans.com"
+const REAPERSCANS_DOMAIN_API = "https://api.reaperscans.com"
+const REAPERSCANS_CDN = "https://media.reaperscans.com/file/4SRBHm" // https://domain.tld/file/<bucket>/<file>
+const ID_SEP = "|#|"
+// https://media.reaperscans.com/file/4SRBHm//comics/c22c1254-ce3c-4628-b3ad-34df82e40cd8/tdDPcgIEfalT3qvWpQQgVZECpadGpI9azYAxFcOo.jpg
+
+//SECTION - SourceInfo
 export const ReaperScansInfo: SourceInfo = {
-    version: '4.0.3',
-    name: 'ReaperScans',
-    description: 'Reaperscans source for 0.8',
-    author: 'NmN',
-    authorWebsite: 'http://github.com/pandeynmm',
-    icon: 'icon.png',
+    version: "5.0",
+    name: "ReaperScans",
+    description: "Reaperscans source for 0.8",
+    author: "NmN",
+    authorWebsite: "http://github.com/pandeynmm",
+    icon: "icon.png",
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: REAPERSCANS_DOMAIN,
     sourceTags: [
         {
-            text: 'English',
+            text: "English",
             type: BadgeColor.GREY,
         },
     ],
@@ -43,6 +59,7 @@ export const ReaperScansInfo: SourceInfo = {
         SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 }
 
+//SECTION - ReaperScans
 export class ReaperScans
     implements
         SearchResultsProviding,
@@ -50,13 +67,15 @@ export class ReaperScans
         ChapterProviding,
         HomePageSectionsProviding
 {
+    //LINK - Class variables
     baseUrl = REAPERSCANS_DOMAIN
+    apiUrl = REAPERSCANS_DOMAIN_API
     stateManager: SourceStateManager = App.createSourceStateManager()
     constructor(private cheerio: CheerioAPI) {}
     RETRY = 5
     parser = new Parser()
-    helper = new Helper()
 
+    //LINK - Manager
     requestManager = App.createRequestManager({
         requestsPerSecond: 6,
         requestTimeout: 8000,
@@ -65,7 +84,7 @@ export class ReaperScans
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
-                        'user-agent':
+                        "user-agent":
                             await this.requestManager.getDefaultUserAgent(),
                         referer: `${this.baseUrl}`,
                     },
@@ -73,76 +92,98 @@ export class ReaperScans
                 return request
             },
             interceptResponse: async (
-                response: Response
+                response: Response,
             ): Promise<Response> => {
                 return response
             },
         },
     })
 
+    //LINK - URL
     getMangaShareUrl(mangaId: string): string {
         return `${this.baseUrl}/comics/${mangaId}`
     }
 
+    //LINK - M-Details
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const request = App.createRequest({
-            url: `${this.baseUrl}/comics/${mangaId}`,
-            method: 'GET',
+            url: `${this.apiUrl}/series/${mangaId.split("|#|")[1]}`,
+            method: "GET",
         })
-        const response = await this.requestManager.schedule(request, this.RETRY)
+        const response = await this.requestManager.schedule(request, 1)
         this.checkResponseError(response)
-        const $ = this.cheerio.load(response.data)
-        return this.parser.parseMangaDetails($, mangaId)
+        const mangaDetails = JSON.parse(response.data ?? "[]") as RSMangaDetails
+        return this.parser.parseMangaDetails(mangaDetails, mangaId)
     }
 
+    //LINK - Chapters
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const chapters: Chapter[] = []
+        const params = {
+            perPage: 10000,
+            series_id: mangaId.split(ID_SEP)[0],
+            page: 1,
+        }
+
+        const queryString = this.parser.joinParams(params)
+        const constructedURL = `${this.apiUrl}/chapter/query?adult=true${queryString}`
+
         const request = App.createRequest({
-            url: `${this.baseUrl}/comics/${mangaId}`,
-            method: 'GET',
+            url: constructedURL,
+            method: "GET",
+            headers: {
+                "user-agent": await this.requestManager.getDefaultUserAgent(),
+                referer: `${this.baseUrl}/`,
+            },
         })
 
-        const response = await this.requestManager.schedule(request, this.RETRY)
+        const response = await this.requestManager.schedule(request, 1)
         this.checkResponseError(response)
-        const $ = this.cheerio.load(response.data)
+        const json = JSON.parse(response.data ?? "[]") as RSChapterList
+        const chapterList = json.data as RSChapterListData[]
 
-        chapters.push(...this.parser.parseChapter($, mangaId, this))
-
-        let page = 2
-        let page_data: Chapter[] = []
-        do {
-            const json = await this.helper.createChapterRequestObject(
-                $,
-                page,
-                this
+        for (const item of chapterList) {
+            chapters.push(
+                App.createChapter({
+                    id: item.chapter_slug?.toString() ?? "",
+                    name: item.chapter_name,
+                    chapNum: Number(
+                        item.chapter_name?.replace("Chapter", "") ?? "-1",
+                    ),
+                    langCode: "en",
+                    time: new Date(item.created_at ?? "0"),
+                }),
             )
-            page_data = this.parser.parseChapter(
-                this.cheerio.load(json.effects.html),
-                mangaId,
-                this
-            )
-            chapters.push(...page_data)
-            page += 1
-        } while (page_data.length > 0)
+        }
 
         return chapters
     }
 
+    //LINK - C-Details
     async getChapterDetails(
         mangaId: string,
-        chapterId: string
+        chapterId: string,
     ): Promise<ChapterDetails> {
+        // https://api.reaperscans.com/chapter/hard-carry-support/chapter-71
         const request = App.createRequest({
-            url: `${this.baseUrl}/comics/${mangaId}/chapters/${chapterId}`,
-            method: 'GET',
+            url: `${this.apiUrl}/chapter/${mangaId.split(ID_SEP)[1]}/${chapterId}`,
+            method: "GET",
         })
-        const response = await this.requestManager.schedule(request, this.RETRY)
-        const $ = this.cheerio.load(response.data)
-        return this.parser.parseChapterDetails($, mangaId, chapterId)
+        const response = await this.requestManager.schedule(request, 1)
+        this.checkResponseError(response)
+        const json = JSON.parse(response.data ?? "[]") as RSChapterDetails
+        const dataLatest = (json.chapter ?? []) as RSCHapterDetailsData
+        return App.createChapterDetails({
+            id: chapterId,
+            mangaId,
+            pages: dataLatest.chapter_data?.images ?? [],
+        })
     }
+
+    //LINK - Search
     async getSearchResults(
         query: SearchRequest,
-        metadata: any
+        metadata: any,
     ): Promise<PagedResults> {
         const page = metadata?.page ?? 1
         if (page == -1 || !query)
@@ -150,26 +191,61 @@ export class ReaperScans
                 results: [],
                 metadata: { page: -1 },
             })
+
+        const searchString = query.title
+            ?.trim()
+            .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+            .replace(/ /g, "+")
+        const params = {
+            query_string: searchString,
+            perPage: 200,
+            page: 1,
+        }
+
+        const queryString = this.parser.joinParams(params)
+        const constructedURL = `${this.apiUrl}/query?adult=true${queryString}`
+
         const request = App.createRequest({
-            url: `${this.baseUrl}`,
-            method: 'GET',
+            url: constructedURL,
+            method: "GET",
+            headers: {
+                "user-agent": await this.requestManager.getDefaultUserAgent(),
+                referer: `${this.baseUrl}/`,
+            },
         })
-        const response = await this.requestManager.schedule(request, this.RETRY)
+
+        const response = await this.requestManager.schedule(request, 1)
         this.checkResponseError(response)
-        const $ = this.cheerio.load(response.data)
-        const json = await this.helper.createSearchRequestObject($, query, this)
-        const result = this.parser.parseSearchResults(
-            this.cheerio.load(json.effects.html)
-        )
+        const json = JSON.parse(response.data ?? "[]") as QueryResult
+        const searchResult = json.data as QueryData[]
+
+        const result = []
+        for (const item of searchResult) {
+            const mangaId = item.id + ID_SEP + item.series_slug
+            const latestChapter =
+                item.free_chapters && item.free_chapters.length > 0
+                    ? item.free_chapters[0]?.chapter_name
+                    : ""
+            result.push(
+                App.createPartialSourceManga({
+                    mangaId,
+                    image: `${REAPERSCANS_CDN}/${item.thumbnail}`,
+                    title: item.title ?? "",
+                    subtitle: latestChapter,
+                }),
+            )
+        }
+
         return App.createPagedResults({
             results: result,
             metadata: { page: -1 },
         })
     }
 
+    //LINK - ViewMore
     async getViewMoreItems(
         homepageSectionId: string,
-        metadata: any
+        metadata: any,
     ): Promise<PagedResults> {
         let page = metadata?.page ?? 1
         if (page == -1)
@@ -179,7 +255,7 @@ export class ReaperScans
             })
         const request = App.createRequest({
             url: `${this.baseUrl}/latest/comics?page=${page.toString()}`,
-            method: 'GET',
+            method: "GET",
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.checkResponseError(response)
@@ -192,24 +268,54 @@ export class ReaperScans
             metadata: { page: page },
         })
     }
+
+    //LINK - HomePage
     async getHomePageSections(
-        sectionCallback: (section: HomeSection) => void
+        sectionCallback: (section: HomeSection) => void,
     ): Promise<void> {
+        const dataDaily: MangaItem[] = await this.parser
+            .getMangaItems(`${this.apiUrl}/trending?type=daily`, this)
+            .then((data) => {
+                return data.filter((item) => item.series_type == "Comic")
+            })
+        const dataWeekly: MangaItem[] = await this.parser
+            .getMangaItems(`${this.apiUrl}/trending?type=weekly`, this)
+            .then((data) => {
+                return data.filter((item) => item.series_type == "Comic")
+            })
+
+        // Latest Titles
+        const params = {
+            series_type: "Comic",
+            perPage: 15,
+            order: "desc",
+            orderBy: "updated_at",
+            page: 1,
+        }
+
+        const queryString = this.parser.joinParams(params)
+        const constructedURL = `${this.apiUrl}/query?adult=true${queryString}`
+
         const request = App.createRequest({
-            url: this.baseUrl,
-            method: 'GET',
+            url: constructedURL,
+            method: "GET",
             headers: {
-                'user-agent': await this.requestManager.getDefaultUserAgent(),
+                "user-agent": await this.requestManager.getDefaultUserAgent(),
                 referer: `${this.baseUrl}/`,
             },
         })
-        console.log(`url is ${this.baseUrl}`)
-        const response = await this.requestManager.schedule(request, this.RETRY)
-        console.log(`response is ${response.status}`)
 
+        const response = await this.requestManager.schedule(request, 1)
         this.checkResponseError(response)
-        const $ = this.cheerio.load(response.data)
-        this.parser.parseHomeSections($, false, sectionCallback)
+        const json = JSON.parse(response.data ?? "[]") as QueryResult
+        const dataLatest = json.data as QueryData[]
+
+        this.parser.parseHomeSections(
+            dataDaily,
+            dataWeekly,
+            dataLatest,
+            sectionCallback,
+        )
     }
 
     /**
@@ -220,23 +326,23 @@ export class ReaperScans
         date = date.toUpperCase()
         let time: Date
         const number = Number((/\d*/.exec(date) ?? [])[0])
-        if (date.includes('LESS THAN AN HOUR') || date.includes('JUST NOW')) {
+        if (date.includes("LESS THAN AN HOUR") || date.includes("JUST NOW")) {
             time = new Date(Date.now())
-        } else if (date.includes('YEAR') || date.includes('YEARS')) {
+        } else if (date.includes("YEAR") || date.includes("YEARS")) {
             time = new Date(Date.now() - number * 31556952000)
-        } else if (date.includes('MONTH') || date.includes('MONTHS')) {
+        } else if (date.includes("MONTH") || date.includes("MONTHS")) {
             time = new Date(Date.now() - number * 2592000000)
-        } else if (date.includes('WEEK') || date.includes('WEEKS')) {
+        } else if (date.includes("WEEK") || date.includes("WEEKS")) {
             time = new Date(Date.now() - number * 604800000)
-        } else if (date.includes('YESTERDAY')) {
+        } else if (date.includes("YESTERDAY")) {
             time = new Date(Date.now() - 86400000)
-        } else if (date.includes('DAY') || date.includes('DAYS')) {
+        } else if (date.includes("DAY") || date.includes("DAYS")) {
             time = new Date(Date.now() - number * 86400000)
-        } else if (date.includes('HOUR') || date.includes('HOURS')) {
+        } else if (date.includes("HOUR") || date.includes("HOURS")) {
             time = new Date(Date.now() - number * 3600000)
-        } else if (date.includes('MINUTE') || date.includes('MINUTES')) {
+        } else if (date.includes("MINUTE") || date.includes("MINUTES")) {
             time = new Date(Date.now() - number * 60000)
-        } else if (date.includes('SECOND') || date.includes('SECONDS')) {
+        } else if (date.includes("SECOND") || date.includes("SECONDS")) {
             time = new Date(Date.now() - number * 1000)
         } else {
             time = new Date(date)
@@ -247,9 +353,9 @@ export class ReaperScans
     async getCloudflareBypassRequest(): Promise<Request> {
         return App.createRequest({
             url: this.baseUrl,
-            method: 'GET',
+            method: "GET",
             headers: {
-                'user-agent': await this.requestManager.getDefaultUserAgent(),
+                "user-agent": await this.requestManager.getDefaultUserAgent(),
                 referer: `${this.baseUrl}/`,
             },
         })
@@ -263,27 +369,27 @@ export class ReaperScans
                 throw new Error(
                     this.createErrorString(
                         `Status: ${response.status}`,
-                        'Cloudflare Error: Click the CLOUD icon.',
-                        'If the issue persists, use #support in netsky\'s server.'
-                    )
+                        "Cloudflare Error: Click the CLOUD icon.",
+                        "If the issue persists, use #support in netsky's server.",
+                    ),
                 )
             case 404:
                 throw new Error(
                     this.createErrorString(
                         `Status: ${response.status}`,
-                        'Webpage not found and the website likely changed domains.',
-                        'Use #support in netsky\'s server.'
-                    )
+                        "Webpage not found and the website likely changed domains.",
+                        "Use #support in netsky's server.",
+                    ),
                 )
         }
     }
 
     createErrorString(...errors: string[]): string {
-        let ret = '\n<======>\n'
+        let ret = "\n<======>\n"
         for (const err of errors) {
             ret += `    • ${err}\n`
         }
-        ret += '<======>\n'
+        ret += "<======>\n"
         return ret
     }
 }
