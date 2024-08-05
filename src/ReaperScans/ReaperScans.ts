@@ -20,7 +20,7 @@ import {
 
 import { Parser } from "./parser"
 import { MangaItem } from "./types/MangaItem"
-import { CheerioAPI } from "cheerio/lib/load"
+
 import {
     QueryData,
     QueryResult,
@@ -71,7 +71,6 @@ export class ReaperScans
     baseUrl = REAPERSCANS_DOMAIN
     apiUrl = REAPERSCANS_DOMAIN_API
     stateManager: SourceStateManager = App.createSourceStateManager()
-    constructor(private cheerio: CheerioAPI) {}
     RETRY = 5
     parser = new Parser()
 
@@ -173,10 +172,19 @@ export class ReaperScans
         this.checkResponseError(response)
         const json = JSON.parse(response.data ?? "[]") as RSChapterDetails
         const dataLatest = (json.chapter ?? []) as RSCHapterDetailsData
+
+        let pages = []
+        for (const i of dataLatest.chapter_data?.images ?? []) {
+            if (i.startsWith(REAPERSCANS_CDN)) {
+                pages.push(i)
+            } else {
+                pages.push(`${REAPERSCANS_CDN}/${i}`)
+            }
+        }
         return App.createChapterDetails({
             id: chapterId,
             mangaId,
-            pages: dataLatest.chapter_data?.images ?? [],
+            pages,
         })
     }
 
@@ -247,20 +255,44 @@ export class ReaperScans
         homepageSectionId: string,
         metadata: any,
     ): Promise<PagedResults> {
+        console.log(`HOMESECTION ID ${homepageSectionId}`)
+        if (homepageSectionId != "2") {
+            return App.createPagedResults({})
+        }
         let page = metadata?.page ?? 1
         if (page == -1)
             return App.createPagedResults({
                 results: [],
                 metadata: { page: -1 },
             })
+
+        // Latest Titles
+        const params = {
+            series_type: "Comic",
+            perPage: 15,
+            order: "desc",
+            orderBy: "updated_at",
+            page: page,
+        }
+
+        const queryString = this.parser.joinParams(params)
+        const constructedURL = `${this.apiUrl}/query?adult=true${queryString}`
+
         const request = App.createRequest({
-            url: `${this.baseUrl}/latest/comics?page=${page.toString()}`,
+            url: constructedURL,
             method: "GET",
+            headers: {
+                "user-agent": await this.requestManager.getDefaultUserAgent(),
+                referer: `${this.baseUrl}/`,
+            },
         })
-        const response = await this.requestManager.schedule(request, this.RETRY)
+
+        const response = await this.requestManager.schedule(request, 1)
         this.checkResponseError(response)
-        const $ = this.cheerio.load(response.data)
-        const result = this.parser.parseViewMore($)
+        const json = JSON.parse(response.data ?? "[]") as QueryResult
+        const dataLatest = json.data as QueryData[]
+
+        const result = this.parser.parseViewMore(dataLatest)
         if (result.length < 1) page = -1
         else page++
         return App.createPagedResults({

@@ -1,5 +1,4 @@
 import {
-    Chapter,
     ChapterDetails,
     HomeSection,
     HomeSectionType,
@@ -11,9 +10,7 @@ import {
 import {
     MangaItem,
     QueryData,
-    QueryResult,
     RSCHapterDetailsData,
-    RSChapterList,
     RSMangaDetails,
 } from "./types/"
 import { ReaperScans } from "./ReaperScans"
@@ -55,31 +52,6 @@ export class Parser {
                 artist: manga.author,
             }),
         })
-    }
-
-    parseChapter($: any, mangaId: string, source: any): Chapter[] {
-        const chapters: Chapter[] = []
-        const list = $("ul[role=list]").first()
-        for (const obj of $("li", list).toArray()) {
-            const id = $("a", obj).attr("href")?.split("/").pop() ?? ""
-            const name = $(".font-medium", obj).text().trim()
-            const date_str = $("div.mt-2 div p", obj)
-                .text()
-                .toLowerCase()
-                .replace("released", "")
-                .trim()
-            if (!id) continue
-            chapters.push(
-                App.createChapter({
-                    id,
-                    name,
-                    chapNum: Number(name.split(" ")[1] ?? "-1"),
-                    langCode: "en",
-                    time: source.convertTime(date_str),
-                }),
-            )
-        }
-        return chapters
     }
 
     //LINK - C-Details
@@ -124,33 +96,21 @@ export class Parser {
     }
 
     //LINK - ViewMore
-    parseViewMore($: any): PartialSourceManga[] {
+    parseViewMore(data: QueryData[]): PartialSourceManga[] {
         const more: PartialSourceManga[] = []
-        for (const obj of $(
-            "div.relative.space-x-2",
-            $(".space-y-4 div"),
-        ).toArray()) {
-            const id = $("div a", obj).attr("href")?.split("/").pop() ?? ""
 
-            const title = $("div a img", obj).attr("alt") ?? ""
-            const subtitle =
-                $("a.text-center", obj).first().text().trim().split("\n")[0] ??
-                ""
-
-            const image_str =
-                $("div a img", obj).attr("data-cfsrc") ??
-                $("div a img", obj).attr("src")
-            const image = image_str.substring(image_str.indexOf("https:") ?? 0)
-
-            if (!id) continue
-            if ($("div a", obj).attr("href").includes("novel")) continue
-
+        for (const item of data) {
+            const mangaId = item.id + this.ID_SEP + item.series_slug
+            const latestChapter =
+                item.free_chapters && item.free_chapters.length > 0
+                    ? item.free_chapters[0]?.chapter_name
+                    : ""
             more.push(
                 App.createPartialSourceManga({
-                    image,
-                    title: this.encodeText(title),
-                    mangaId: id,
-                    subtitle: subtitle,
+                    mangaId,
+                    image: `${this.REAPERSCANS_CDN}/${item.thumbnail}`,
+                    title: item.title ?? "",
+                    subtitle: latestChapter,
                 }),
             )
         }
