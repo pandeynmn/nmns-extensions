@@ -39,7 +39,7 @@ const ID_SEP = "|#|"
 
 //SECTION - SourceInfo
 export const ReaperScansInfo: SourceInfo = {
-    version: "5.0",
+    version: "5.1",
     name: "ReaperScans",
     description: "Reaperscans source for 0.8",
     author: "NmN",
@@ -100,7 +100,7 @@ export class ReaperScans
 
     //LINK - URL
     getMangaShareUrl(mangaId: string): string {
-        return `${this.baseUrl}/comics/${mangaId}`
+        return`${this.baseUrl}/series/${mangaId.split("|#|")[1]}`
     }
 
     //LINK - M-Details
