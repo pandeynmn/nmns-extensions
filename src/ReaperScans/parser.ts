@@ -1,5 +1,4 @@
 import {
-    ChapterDetails,
     HomeSection,
     HomeSectionType,
     SourceManga,
@@ -7,12 +6,9 @@ import {
     TagSection,
 } from "@paperback/types"
 
-import {
-    MangaItem,
-    QueryData,
-    RSCHapterDetailsData,
-    RSMangaDetails,
-} from "./types/"
+import entities = require("entities")
+
+import { MangaItem, QueryData, RSMangaDetails } from "./types/"
 import { ReaperScans } from "./ReaperScans"
 
 export class Parser {
@@ -35,11 +31,13 @@ export class Parser {
                     App.createTag({
                         id: x.id?.toString() ?? "",
                         label: x.name ?? "",
-                    })
+                    }),
                 ),
             }),
         ]
 
+        console.log("DEBUGGER")
+        console.log(entities.decodeHTML(desc))
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
@@ -47,7 +45,7 @@ export class Parser {
                 image,
                 status: manga.status ?? "Ongoing",
                 tags,
-                desc: this.encodeText(desc),
+                desc: entities.decodeHTML(desc),
                 author: manga.author,
                 artist: manga.author,
             }),
@@ -55,17 +53,18 @@ export class Parser {
     }
 
     //LINK - C-Details
-    parseChapterDetails(
-        chapter: RSCHapterDetailsData,
-        mangaId: string,
-        id: string
-    ): ChapterDetails {
-        return App.createChapterDetails({
-            id,
-            mangaId,
-            pages: chapter.chapter_data?.images ?? [],
-        })
-    }
+    // UNUSED
+    // parseChapterDetails(
+    //     chapter: RSChapterDetailsData,
+    //     mangaId: string,
+    //     id: string,
+    // ): ChapterDetails {
+    //     return App.createChapterDetails({
+    //         id,
+    //         mangaId,
+    //         pages: chapter.chapter_data?.images ?? [],
+    //     })
+    // }
     parseSearchResults($: any): PartialSourceManga[] {
         const results: PartialSourceManga[] = []
         for (const item of $("ul li").toArray()) {
@@ -89,7 +88,7 @@ export class Parser {
                     title: this.encodeText(title),
                     mangaId: id,
                     subtitle: this.encodeText(subtitle),
-                })
+                }),
             )
         }
         return results
@@ -111,7 +110,7 @@ export class Parser {
                     image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
                     subtitle: latestChapter,
-                })
+                }),
             )
         }
         return more
@@ -122,7 +121,7 @@ export class Parser {
         daily: MangaItem[],
         weekly: MangaItem[],
         latest: QueryData[],
-        sectionCallback: (section: HomeSection) => void
+        sectionCallback: (section: HomeSection) => void,
     ): void {
         const section1 = App.createHomeSection({
             id: "1",
@@ -156,7 +155,7 @@ export class Parser {
                     mangaId,
                     image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
-                })
+                }),
             )
         }
         section1.items = mangaDaily
@@ -174,7 +173,7 @@ export class Parser {
                     image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
                     subtitle: latestChapter,
-                })
+                }),
             )
         }
         section2.items = mangaLatest
@@ -187,7 +186,7 @@ export class Parser {
                     mangaId,
                     image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
-                })
+                }),
             )
         }
         section3.items = mangaWeekly
@@ -213,7 +212,7 @@ export class Parser {
     //LINK - MangaItmes Call
     async getMangaItems(
         url: string,
-        source: ReaperScans
+        source: ReaperScans,
     ): Promise<MangaItem[]> {
         const request = App.createRequest({
             url: url,
@@ -226,7 +225,7 @@ export class Parser {
 
         const response = await source.requestManager.schedule(
             request,
-            source.RETRY
+            source.RETRY,
         )
         source.checkResponseError(response)
         const json = JSON.parse(response.data ?? "[]") as MangaItem[]

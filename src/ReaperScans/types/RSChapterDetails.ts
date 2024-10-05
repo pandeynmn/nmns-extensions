@@ -1,5 +1,5 @@
-export type RSChapterData = {
-    chapter?: Chapter
+export type RSChapterDetails = {
+    chapter?: RSChapterDetailsData
     previous_chapter?: PreviousChapter
     next_chapter?: null
 }
@@ -51,10 +51,8 @@ export type Series = {
     series_slug?: string
     thumbnail?: string
     title?: string
-    meta?: SeriesMeta
+    meta?: any
 }
-
-export type SeriesMeta = {}
 
 export type PreviousChapter = {
     id?: number
@@ -64,5 +62,5 @@ export type PreviousChapter = {
     chapters_to_be_freed?: any[]
     novel_chapters?: any[]
     excerpt?: null
-    meta?: SeriesMeta
+    meta?: any
 }

@@ -15,14 +15,14 @@ export type RSChapterListData = {
     meta?: object
 }
 
-export type Series = {
+type Series = {
     series_slug?: string
     id?: number
     latest_chapter?: null
     meta?: object
 }
 
-export type ChapterDetailsMeta = {
+type ChapterDetailsMeta = {
     total?: number
     per_page?: number
     current_page?: number
