@@ -35,7 +35,7 @@ export class Parser {
                     App.createTag({
                         id: x.id?.toString() ?? "",
                         label: x.name ?? "",
-                    }),
+                    })
                 ),
             }),
         ]
@@ -58,7 +58,7 @@ export class Parser {
     parseChapterDetails(
         chapter: RSCHapterDetailsData,
         mangaId: string,
-        id: string,
+        id: string
     ): ChapterDetails {
         return App.createChapterDetails({
             id,
@@ -89,7 +89,7 @@ export class Parser {
                     title: this.encodeText(title),
                     mangaId: id,
                     subtitle: this.encodeText(subtitle),
-                }),
+                })
             )
         }
         return results
@@ -108,10 +108,10 @@ export class Parser {
             more.push(
                 App.createPartialSourceManga({
                     mangaId,
-                    image: `${this.REAPERSCANS_CDN}/${item.thumbnail}`,
+                    image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
                     subtitle: latestChapter,
-                }),
+                })
             )
         }
         return more
@@ -122,7 +122,7 @@ export class Parser {
         daily: MangaItem[],
         weekly: MangaItem[],
         latest: QueryData[],
-        sectionCallback: (section: HomeSection) => void,
+        sectionCallback: (section: HomeSection) => void
     ): void {
         const section1 = App.createHomeSection({
             id: "1",
@@ -154,10 +154,9 @@ export class Parser {
             mangaDaily.push(
                 App.createPartialSourceManga({
                     mangaId,
-                    image: `${this.REAPERSCANS_CDN}/${item.thumbnail}`,
+                    image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
-                    subtitle: item.author,
-                }),
+                })
             )
         }
         section1.items = mangaDaily
@@ -172,10 +171,10 @@ export class Parser {
             mangaLatest.push(
                 App.createPartialSourceManga({
                     mangaId,
-                    image: `${this.REAPERSCANS_CDN}/${item.thumbnail}`,
+                    image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
                     subtitle: latestChapter,
-                }),
+                })
             )
         }
         section2.items = mangaLatest
@@ -186,14 +185,23 @@ export class Parser {
             mangaWeekly.push(
                 App.createPartialSourceManga({
                     mangaId,
-                    image: `${this.REAPERSCANS_CDN}/${item.thumbnail}`,
+                    image: this.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
-                    subtitle: item.author,
-                }),
+                })
             )
         }
         section3.items = mangaWeekly
         sectionCallback(section3)
+    }
+
+    checkimage(img: string): string {
+        if (img == "") {
+            return ""
+        }
+        if (img.startsWith("https")) {
+            return img
+        }
+        return `${this.REAPERSCANS_CDN}/${img}`
     }
 
     encodeText(str: string): string {
@@ -205,7 +213,7 @@ export class Parser {
     //LINK - MangaItmes Call
     async getMangaItems(
         url: string,
-        source: ReaperScans,
+        source: ReaperScans
     ): Promise<MangaItem[]> {
         const request = App.createRequest({
             url: url,
@@ -218,7 +226,7 @@ export class Parser {
 
         const response = await source.requestManager.schedule(
             request,
-            source.RETRY,
+            source.RETRY
         )
         source.checkResponseError(response)
         const json = JSON.parse(response.data ?? "[]") as MangaItem[]

@@ -39,7 +39,7 @@ const ID_SEP = "|#|"
 
 //SECTION - SourceInfo
 export const ReaperScansInfo: SourceInfo = {
-    version: "5.1",
+    version: "5.2",
     name: "ReaperScans",
     description: "Reaperscans source for 0.8",
     author: "NmN",
@@ -91,7 +91,7 @@ export class ReaperScans
                 return request
             },
             interceptResponse: async (
-                response: Response,
+                response: Response
             ): Promise<Response> => {
                 return response
             },
@@ -100,7 +100,7 @@ export class ReaperScans
 
     //LINK - URL
     getMangaShareUrl(mangaId: string): string {
-        return`${this.baseUrl}/series/${mangaId.split("|#|")[1]}`
+        return `${this.baseUrl}/series/${mangaId.split("|#|")[1]}`
     }
 
     //LINK - M-Details
@@ -147,11 +147,11 @@ export class ReaperScans
                     id: item.chapter_slug?.toString() ?? "",
                     name: item.chapter_name,
                     chapNum: Number(
-                        item.chapter_name?.replace("Chapter", "") ?? "-1",
+                        item.chapter_name?.replace("Chapter", "") ?? "-1"
                     ),
                     langCode: "en",
                     time: new Date(item.created_at ?? "0"),
-                }),
+                })
             )
         }
 
@@ -161,11 +161,13 @@ export class ReaperScans
     //LINK - C-Details
     async getChapterDetails(
         mangaId: string,
-        chapterId: string,
+        chapterId: string
     ): Promise<ChapterDetails> {
         // https://api.reaperscans.com/chapter/hard-carry-support/chapter-71
         const request = App.createRequest({
-            url: `${this.apiUrl}/chapter/${mangaId.split(ID_SEP)[1]}/${chapterId}`,
+            url: `${this.apiUrl}/chapter/${
+                mangaId.split(ID_SEP)[1]
+            }/${chapterId}`,
             method: "GET",
         })
         const response = await this.requestManager.schedule(request, 1)
@@ -174,11 +176,13 @@ export class ReaperScans
         const dataLatest = (json.chapter ?? []) as RSCHapterDetailsData
 
         let pages = []
-        for (const i of dataLatest.chapter_data?.images ?? []) {
-            if (i.startsWith(REAPERSCANS_CDN)) {
-                pages.push(i)
+        console.log("DEBUGGER")
+        for (const i of dataLatest.chapter_data.files ?? []) {
+            const image = i.url
+            if (image.startsWith(REAPERSCANS_CDN)) {
+                pages.push(image)
             } else {
-                pages.push(`${REAPERSCANS_CDN}/${i}`)
+                pages.push(`${REAPERSCANS_CDN}/${image}`)
             }
         }
         return App.createChapterDetails({
@@ -191,7 +195,7 @@ export class ReaperScans
     //LINK - Search
     async getSearchResults(
         query: SearchRequest,
-        metadata: any,
+        metadata: any
     ): Promise<PagedResults> {
         const page = metadata?.page ?? 1
         if (page == -1 || !query)
@@ -237,10 +241,10 @@ export class ReaperScans
             result.push(
                 App.createPartialSourceManga({
                     mangaId,
-                    image: `${REAPERSCANS_CDN}/${item.thumbnail}`,
+                    image: this.parser.checkimage(item.thumbnail ?? ""),
                     title: item.title ?? "",
                     subtitle: latestChapter,
-                }),
+                })
             )
         }
 
@@ -253,7 +257,7 @@ export class ReaperScans
     //LINK - ViewMore
     async getViewMoreItems(
         homepageSectionId: string,
-        metadata: any,
+        metadata: any
     ): Promise<PagedResults> {
         console.log(`HOMESECTION ID ${homepageSectionId}`)
         if (homepageSectionId != "2") {
@@ -303,18 +307,22 @@ export class ReaperScans
 
     //LINK - HomePage
     async getHomePageSections(
-        sectionCallback: (section: HomeSection) => void,
+        sectionCallback: (section: HomeSection) => void
     ): Promise<void> {
-        const dataDaily: MangaItem[] = await this.parser
-            .getMangaItems(`${this.apiUrl}/trending?type=daily`, this)
-            .then((data) => {
-                return data.filter((item) => item.series_type == "Comic")
-            })
-        const dataWeekly: MangaItem[] = await this.parser
-            .getMangaItems(`${this.apiUrl}/trending?type=weekly`, this)
-            .then((data) => {
-                return data.filter((item) => item.series_type == "Comic")
-            })
+        const dataDaily: MangaItem[] = await this.parser.getMangaItems(
+            `${this.apiUrl}/trending?type=daily`,
+            this
+        )
+        // .then((data) => {
+        //     return data.filter((item) => item.series_type == "Comic")
+        // })
+        const dataWeekly: MangaItem[] = await this.parser.getMangaItems(
+            `${this.apiUrl}/trending?type=weekly`,
+            this
+        )
+        // .then((data) => {
+        //     return data.filter((item) => item.series_type == "Comic")
+        // })
 
         // Latest Titles
         const params = {
@@ -346,7 +354,7 @@ export class ReaperScans
             dataDaily,
             dataWeekly,
             dataLatest,
-            sectionCallback,
+            sectionCallback
         )
     }
 
@@ -402,16 +410,16 @@ export class ReaperScans
                     this.createErrorString(
                         `Status: ${response.status}`,
                         "Cloudflare Error: Click the CLOUD icon.",
-                        "If the issue persists, use #support in netsky's server.",
-                    ),
+                        "If the issue persists, use #support in netsky's server."
+                    )
                 )
             case 404:
                 throw new Error(
                     this.createErrorString(
                         `Status: ${response.status}`,
                         "Webpage not found and the website likely changed domains.",
-                        "Use #support in netsky's server.",
-                    ),
+                        "Use #support in netsky's server."
+                    )
                 )
         }
     }
