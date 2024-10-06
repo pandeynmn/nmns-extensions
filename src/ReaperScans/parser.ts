@@ -1,191 +1,197 @@
 import {
-    Chapter,
-    ChapterDetails,
     HomeSection,
     HomeSectionType,
-    LanguageCode,
-    Manga,
-    MangaStatus,
-    MangaTile,
-    Tag,
+    SourceManga,
+    PartialSourceManga,
     TagSection,
-    SearchRequest,
-} from 'paperback-extensions-common'
+} from "@paperback/types"
+
+import entities = require("entities")
+
+import { MangaItem, QueryData, RSMangaDetails } from "./types/"
+import { ReaperScans } from "./ReaperScans"
 
 export class Parser {
-    parseMangaDetails($: any, mangaId: string): Manga {
-        const title = $('.min-h-80 img').attr('alt') ?? ''
-        const image_str = $('.min-h-80 img').attr('data-cfsrc') ?? $('.min-h-80 img').attr('src')
-        const image = image_str.substring(image_str.indexOf('https:') ?? 0)
-        const desc = $('p.prose').text().trim()      ?? ''
+    REAPERSCANS_DOMAIN = "https://reaperscans.com"
+    REAPERSCANS_DOMAIN_API = "https://api.reaperscans.com"
+    REAPERSCANS_CDN = "https://media.reaperscans.com/file/4SRBHm" // https://domain.tld/file/<bucket>/<file>
+    ID_SEP = "|#|"
 
-        return createManga({
+    //LINK - MangaDetails
+    parseMangaDetails(manga: RSMangaDetails, mangaId: string): SourceManga {
+        const title = manga.title ?? ""
+        const desc = manga.description ?? ""
+
+        const tags: TagSection[] = [
+            App.createTagSection({
+                id: "0",
+                label: "genres",
+                tags: (manga.tags ?? []).map((x) =>
+                    App.createTag({
+                        id: x.id?.toString() ?? "",
+                        label: x.name ?? "",
+                    }),
+                ),
+            }),
+        ]
+
+        return App.createSourceManga({
             id: mangaId,
-            titles: [this.encodeText(title)],
-            image,
-            status: MangaStatus.ONGOING, // TODO: going to change this with the search update.s
-            tags: [],
-            desc: this.encodeText(desc),
+            mangaInfo: App.createMangaInfo({
+                titles: [this.encodeText(title)],
+                image: this.checkimage(manga.thumbnail ?? ""),
+                status: manga.status ?? "Ongoing",
+                tags,
+                desc: entities.decodeHTML(desc),
+                author: manga.author,
+                artist: manga.author,
+            }),
         })
     }
 
-    /*
-    mangaStatus(str: string) {
-        if (str.includes('ongoing'))   return MangaStatus.ONGOING
-        if (str.includes('complete'))  return MangaStatus.COMPLETED
-        if (str.includes('haitus'))    return MangaStatus.HIATUS
-        if (str.includes('dropped'))   return MangaStatus.ABANDONED
-        if (str.includes('new'))       return MangaStatus.ONGOING
-        return MangaStatus.ONGOING
-    }
-    */
+    //LINK - ViewMore
+    parseViewMore(data: QueryData[]): PartialSourceManga[] {
+        const more: PartialSourceManga[] = []
 
-    parseChapter($: any, mangaId: string, source: any): Chapter[] {
-        const chapters: Chapter[] = []
-        const list = $('ul[role=list]').first()
-        for (const obj of $('li', list).toArray()) {
-            const id = $('a', obj).attr('href')?.split('/').pop() ?? ''
-            const name = $('.font-medium', obj).text().trim()
-            const date_str = $('div.mt-2 div p', obj).text().toLowerCase().replace('released', '').trim()
-
-            if (!id) continue
-
-            chapters.push(
-                createChapter({
-                    id,
-                    mangaId,
-                    name,
-                    chapNum: Number(name.split(' ')[1] ?? '-1'),
-                    langCode: LanguageCode.ENGLISH,
-                    time: source.convertTime(date_str),
-                })
-            )
-        }
-        return chapters
-    }
-
-    parseChapterDetails($: any, mangaId: string, id: string): ChapterDetails {
-        const pages: string[] = []
-        for (const item of $('img.max-w-full').toArray()) {
-            const page_str = ($(item).attr('data-cfsrc') ?? $(item).attr('src') ?? '').replaceAll(' ', '%20')
-            const page = page_str.substring(page_str.indexOf('https:') ?? 0)
-            pages.push(page)
-        }
-        return createChapterDetails({
-            id,
-            mangaId,
-            pages,
-            longStrip: true,
-        })
-    }
-
-    parseSearchResults($: any): MangaTile[] {
-        const results: MangaTile[] = []
-        for (const item of $('ul li').toArray()) {
-            const id = $('a', item).attr('href')?.split('/').pop() ?? ''
-
-            if ($(item).text() == 'Novels') break
-            if (!id) continue
-            
-            const title = $('a img', item).attr('alt')
-            const subtitle = $('a p span:nth-child(3)', item).text().trim()
-            const image_str = $('a img', item).attr('data-cfsrc') ?? $('a img', item).attr('src') ?? ''
-            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
-            
-            results.push(
-                createMangaTile({
-                    id,
-                    image,
-                    title: createIconText({ text: this.encodeText(title) }),
-                    subtitleText: createIconText({ text: this.encodeText(subtitle) }),
-                })
-            )
-        }
-        return results
-    }
-
-    parseViewMore($: any): MangaTile[] {
-        const more: MangaTile[] = []
-        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
-            const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
-            const title = $('div a img', obj).attr('alt') ?? ''
-            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
-            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
-            const subtitle = $('a.text-center', obj).first().text().trim().split('\n')[0] ?? ''
-
-            if (!id) continue
-            if($('div a', obj).attr('href').includes('novel'))  continue
-
+        for (const item of data) {
+            const mangaId = item.id + this.ID_SEP + item.series_slug
+            const latestChapter =
+                item.free_chapters && item.free_chapters.length > 0
+                    ? item.free_chapters[0]?.chapter_name
+                    : ""
             more.push(
-                createMangaTile({
-                    id,
-                    image,
-                    title: createIconText({ text: this.encodeText(title) }),
-                    subtitleText: createIconText({ text: subtitle }),
-                })
+                App.createPartialSourceManga({
+                    mangaId,
+                    image: this.checkimage(item.thumbnail ?? ""),
+                    title: item.title ?? "",
+                    subtitle: latestChapter,
+                }),
             )
         }
         return more
     }
 
-    parseHomeSections($: any, rowtype: boolean, sectionCallback: (section: HomeSection) => void): void {
-        const type: HomeSectionType = rowtype ? HomeSectionType.singleRowLarge : HomeSectionType.singleRowNormal
+    //LINK - HomePage
+    parseHomeSections(
+        daily: MangaItem[],
+        weekly: MangaItem[],
+        latest: QueryData[],
+        sectionCallback: (section: HomeSection) => void,
+    ): void {
+        const section1 = App.createHomeSection({
+            id: "1",
+            title: "Trending",
+            containsMoreItems: false,
+            type: HomeSectionType.featured,
+        })
 
-        const section1 = createHomeSection({ id: '1', title: 'Today\'s Picks', type: HomeSectionType.featured,})
-        const section2 = createHomeSection({ id: '2', title: 'Latest Comic', type: type, view_more: true,})
+        const section2 = App.createHomeSection({
+            id: "2",
+            title: "Latest",
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        })
 
-        const featured: MangaTile[] = []
-        const latest  : MangaTile[] = []
+        const section3 = App.createHomeSection({
+            id: "3",
+            title: "Weekly Comics",
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowLarge,
+        })
 
-        for (const obj of $('ul.grid-cols-2 li').toArray()) {
-            const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
-            const title = $('div a img', obj).attr('alt') ?? ''
-            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
-            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
-            const chnum = $('.flex.mt-4.space-x-2.mb-4 a').first().text().trim() ?? ''
-            const type  = $('div a div.absolute span', obj).text().trim().toLowerCase() ?? ''
+        const mangaDaily: PartialSourceManga[] = []
+        const mangaWeekly: PartialSourceManga[] = []
+        const mangaLatest: PartialSourceManga[] = []
 
-            if (!id) continue
-            if (type == 'novel')  continue
-
-            featured.push(
-                createMangaTile({
-                    id,
-                    image,
-                    title: createIconText({ text: this.encodeText(title) }),
-                    subtitleText: createIconText({ text: chnum }),
-                })
+        for (const item of daily) {
+            const mangaId = item.id + this.ID_SEP + item.series_slug
+            mangaDaily.push(
+                App.createPartialSourceManga({
+                    mangaId,
+                    image: this.checkimage(item.thumbnail ?? ""),
+                    title: item.title ?? "",
+                }),
             )
         }
-        section1.items = featured
+        section1.items = mangaDaily
         sectionCallback(section1)
 
-        for (const obj of $('div.relative.space-x-2', $('.space-y-4 div')).toArray()) {
-            const id    = $('div a', obj).attr('href')?.split('/').pop() ?? ''
-            const title = $('div a img', obj).attr('alt') ?? ''
-            const image_str = $('div a img', obj).attr('data-cfsrc') ?? $('div a img', obj).attr('src')
-            const image = image_str.substring(image_str.indexOf('https:') ?? 0)
-            const subtitle = $('p', $('a.text-center', obj).first()).text().trim()
-
-            if (!id) continue
-            if($('div a', obj).attr('href').includes('novel'))  continue
-
-            latest.push(
-                createMangaTile({
-                    id,
-                    image,
-                    title: createIconText({ text: this.encodeText(title) }),
-                    subtitleText: createIconText({ text: subtitle }),
-                })
+        for (const item of latest) {
+            const mangaId = item.id + this.ID_SEP + item.series_slug
+            const latestChapter =
+                item.free_chapters && item.free_chapters.length > 0
+                    ? item.free_chapters[0]?.chapter_name
+                    : ""
+            mangaLatest.push(
+                App.createPartialSourceManga({
+                    mangaId,
+                    image: this.checkimage(item.thumbnail ?? ""),
+                    title: item.title ?? "",
+                    subtitle: latestChapter,
+                }),
             )
         }
-        section2.items = latest
+        section2.items = mangaLatest
         sectionCallback(section2)
+
+        for (const item of weekly) {
+            const mangaId = item.id + this.ID_SEP + item.series_slug
+            mangaWeekly.push(
+                App.createPartialSourceManga({
+                    mangaId,
+                    image: this.checkimage(item.thumbnail ?? ""),
+                    title: item.title ?? "",
+                }),
+            )
+        }
+        section3.items = mangaWeekly
+        sectionCallback(section3)
+    }
+
+    checkimage(img: string): string {
+        if (img == "") {
+            return ""
+        }
+        if (img.startsWith("https")) {
+            return img
+        }
+        return `${this.REAPERSCANS_CDN}/${img}`
     }
 
     encodeText(str: string): string {
         return str.replace(/&#([0-9]{1,4});/gi, (_, numStr) => {
             return String.fromCharCode(parseInt(numStr, 10))
         })
+    }
+
+    //LINK - MangaItmes Call
+    async getMangaItems(
+        url: string,
+        source: ReaperScans,
+    ): Promise<MangaItem[]> {
+        const request = App.createRequest({
+            url: url,
+            method: "GET",
+            headers: {
+                "user-agent": await source.requestManager.getDefaultUserAgent(),
+                referer: `${source.baseUrl}/`,
+            },
+        })
+
+        const response = await source.requestManager.schedule(
+            request,
+            source.RETRY,
+        )
+        source.checkResponseError(response)
+        const json = JSON.parse(response.data ?? "[]") as MangaItem[]
+        return json
+    }
+
+    joinParams(params: { [key: string]: any }): string {
+        let ret = ""
+        for (const key in params) {
+            ret += `&${key}=${params[key].toString()}`
+        }
+        return ret
     }
 }

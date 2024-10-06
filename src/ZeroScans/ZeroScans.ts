@@ -3,48 +3,51 @@ import {
     ChapterDetails,
     ContentRating,
     HomeSection,
-    Manga,
     PagedResults,
     SearchRequest,
     Request,
     Response,
-    Source,
     SourceInfo,
-    TagType,
+    SourceIntents,
+    SourceManga,
     TagSection,
     Tag,
-} from 'paperback-extensions-common'
+    BadgeColor,
+    SearchResultsProviding,
+    MangaProviding,
+    ChapterProviding,
+    HomePageSectionsProviding
+} from '@paperback/types'
 
 import { Parser } from './parser'
 
-const ZEROSCANS_DOMAIN = 'https://zeroscans.com'
+const ZEROSCANS_DOMAIN = 'https://zscans.com'
 
 export const ZeroScansInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '2.0.1',
     name: 'Zero Scans',
-    description: 'Extension that pulls manga from Zero Scans.',
+    icon: 'icon.png',
     author: 'NmN',
     authorWebsite: 'http://github.com/pandeynmm',
-    icon: 'icon.png',
+    description: 'Extension that pulls manga from bato.to',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: ZEROSCANS_DOMAIN,
-    sourceTags: [
+    language: 'en',
+    sourceTags: [ 
         {
             text: 'English',
-            type: TagType.GREY,
-        },
-        {
-            text: 'Cloudflare',
-            type: TagType.RED
-        },
+            type: BadgeColor.GREY
+            
+        }
     ],
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED
 }
 
 const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Mobile/15E148 Safari/604.1'
 
-export class ZeroScans extends Source {
+export class ZeroScans implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     baseUrl = ZEROSCANS_DOMAIN
-    requestManager = createRequestManager({
+    requestManager = App.createRequestManager({
         requestsPerSecond: 3,
         requestTimeout: 8000,
         interceptor: {
@@ -67,15 +70,17 @@ export class ZeroScans extends Source {
         }
     })
 
+    constructor(private cheerio: CheerioAPI) { }
+
     RETRY = 5
     parser = new Parser()
 
-    override getMangaShareUrl(mangaId: string): string {
+    getMangaShareUrl(mangaId: string): string {
         return `${this.baseUrl}/comics/${mangaId}`
     }
 
-    async getMangaDetails(mangaId: string): Promise<Manga> {
-        const request = createRequestObject({
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const request = App.createRequest({
             url: `${this.baseUrl}/comics/${mangaId}`,
             method: 'GET',
         })
@@ -88,7 +93,7 @@ export class ZeroScans extends Source {
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const chapters: Chapter[] = []
 
-        const request = createRequestObject({
+        const request = App.createRequest({
             url: `${this.baseUrl}/comics/${mangaId}`,
             method: 'GET',
         })
@@ -122,99 +127,102 @@ export class ZeroScans extends Source {
     }
 
     async createChapterRequest(numericId: string, page: number) : Promise<any> {
-        const url = `https://zeroscans.com/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`
-        const request = createRequestObject({
+        const url = `${this.baseUrl}/swordflake/comic/${numericId}/chapters?sort=asc&page=${page.toString()}`
+        const request = App.createRequest({
             url,
             method: 'GET',
         })
-        const response = await this.requestManager.schedule(request, this.RETRY)
+        const response = await this.requestManager.schedule(request, this.RETRY) ?? ''
+        if (!response || !response.data) {
+            return JSON.parse('{error: \'true\'}')
+        }
         const json = JSON.parse(response.data)
         return json
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const request = createRequestObject({
-            url: `https://zeroscans.com/swordflake/comic/${mangaId}/chapters/${chapterId}`,
+        const request = App.createRequest({
+            url: `${this.baseUrl}/swordflake/comic/${mangaId}/chapters/${chapterId}`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
-        const json = JSON.parse(response.data)
+        const json = JSON.parse(response.data ?? '')
         return this.parser.parseChapterDetails(json, mangaId, chapterId)
     }
 
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
         const page = metadata?.page ?? 1
-        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+        if (page == -1) return App.createPagedResults({ results: [], metadata: { page: -1 } })
 
-        const request = createRequestObject({
+        const request = App.createRequest({
             url: `${this.baseUrl}/swordflake/comics`,
             method: 'GET',
         })
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
 
-        const json = JSON.parse(response.data)
-        return createPagedResults({
+        const json = JSON.parse(response.data ?? '')
+        return App.createPagedResults({
             results: this.parser.parseSearchResults(json, query),
             metadata: { page: -1 },
         })
     }
 
-    override async getSearchTags():  Promise<TagSection[]> {
-        const request = createRequestObject({
+    async getSearchTags():  Promise<TagSection[]> {
+        const request = App.createRequest({
             url: `${this.baseUrl}/swordflake/comics`,
             method: 'GET',
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const json = JSON.parse(response.data)
+        const json = JSON.parse(response.data ?? '')
 
         const genres: Tag[] = []
         for (const item of json.data.genres) {
-            genres.push(createTag({ label: item.name, id: item.slug }))
+            genres.push(App.createTag({ label: item.name, id: item.slug }))
         }
 
-        const tagSections: TagSection[] = [createTagSection({ id: '0', label: 'Genres', tags: genres })]
+        const tagSections: TagSection[] = [App.createTagSection({ id: '0', label: 'Genres', tags: genres })]
         return tagSections
     }
 
-    override async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
+    async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const page = metadata?.page ?? 1
-        if (page == -1) return createPagedResults({ results: [], metadata: { page: -1 } })
+        if (page == -1) return App.createPagedResults({ results: [], metadata: { page: -1 } })
 
-        const request = createRequestObject({
+        const request = App.createRequest({
             url: `${this.baseUrl}/swordflake/comics`,
             method: 'GET',
         })
 
         const response = await this.requestManager.schedule(request, this.RETRY)
         this.CloudFlareError(response.status)
-        const json = JSON.parse(response.data)
+        const json = JSON.parse(response.data ?? '')
 
-        return createPagedResults({
+        return App.createPagedResults({
             results: this.parser.parseViewMore(json),
             metadata: { page: -1 },
         })
     }
 
-    override async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
-        let request = createRequestObject({
+    async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
+        let request = App.createRequest({
             url: `${this.baseUrl}/swordflake/home`,
             method: 'GET',
         })
         let response = await this.requestManager.schedule(request, this.RETRY)
-        const jsonData = JSON.parse(response.data)
+        const jsonData = JSON.parse(response.data ?? '')
 
         this.CloudFlareError(response.status)
 
-        request = createRequestObject({
+        request = App.createRequest({
             url: `${this.baseUrl}/swordflake/new-chapters`,
             method: 'GET',
         })
         response = await this.requestManager.schedule(request, this.RETRY)
-        const releaseData = JSON.parse(response.data)
+        const releaseData = JSON.parse(response.data ?? '')
 
         this.parser.parseHomeSections(jsonData, releaseData, sectionCallback)
     }
@@ -251,8 +259,8 @@ export class ZeroScans extends Source {
         return time
     }
 
-    override getCloudflareBypassRequest(): Request {
-        return createRequestObject({
+    getCloudflareBypassRequest(): Request {
+        return App.createRequest({
             url: this.baseUrl,
             method: 'GET',
             headers: {
