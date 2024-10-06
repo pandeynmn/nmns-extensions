@@ -39,7 +39,7 @@ const ID_SEP = "|#|"
 
 //SECTION - SourceInfo
 export const ReaperScansInfo: SourceInfo = {
-    version: "5.3",
+    version: "5.4",
     name: "ReaperScans",
     description: "Reaperscans source for 0.8",
     author: "NmN",
@@ -176,7 +176,6 @@ export class ReaperScans
         const dataLatest = (json.chapter ?? []) as RSChapterDetailsData
 
         const pages = []
-        console.log("DEBUGGER")
         for (const i of dataLatest.chapter_data?.files ?? []) {
             const image = i.url ?? ""
             if (image.startsWith(REAPERSCANS_CDN)) {
@@ -259,7 +258,6 @@ export class ReaperScans
         homepageSectionId: string,
         metadata: any,
     ): Promise<PagedResults> {
-        console.log(`HOMESECTION ID ${homepageSectionId}`)
         if (homepageSectionId != "2") {
             return App.createPagedResults({})
         }

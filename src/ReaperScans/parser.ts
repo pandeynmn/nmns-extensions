@@ -20,7 +20,6 @@ export class Parser {
     //LINK - MangaDetails
     parseMangaDetails(manga: RSMangaDetails, mangaId: string): SourceManga {
         const title = manga.title ?? ""
-        const image = `${this.REAPERSCANS_CDN}/${manga.thumbnail}`
         const desc = manga.description ?? ""
 
         const tags: TagSection[] = [
@@ -36,13 +35,11 @@ export class Parser {
             }),
         ]
 
-        console.log("DEBUGGER")
-        console.log(entities.decodeHTML(desc))
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
                 titles: [this.encodeText(title)],
-                image,
+                image: this.checkimage(manga.thumbnail ?? ""),
                 status: manga.status ?? "Ongoing",
                 tags,
                 desc: entities.decodeHTML(desc),
@@ -50,48 +47,6 @@ export class Parser {
                 artist: manga.author,
             }),
         })
-    }
-
-    //LINK - C-Details
-    // UNUSED
-    // parseChapterDetails(
-    //     chapter: RSChapterDetailsData,
-    //     mangaId: string,
-    //     id: string,
-    // ): ChapterDetails {
-    //     return App.createChapterDetails({
-    //         id,
-    //         mangaId,
-    //         pages: chapter.chapter_data?.images ?? [],
-    //     })
-    // }
-    parseSearchResults($: any): PartialSourceManga[] {
-        const results: PartialSourceManga[] = []
-        for (const item of $("ul li").toArray()) {
-            const id = $("a", item).attr("href")?.split("/").pop() ?? ""
-
-            if ($(item).text() == "Novels") break
-            if (!id) continue
-
-            const title = $("a img", item).attr("alt")
-            const subtitle = $("a p span:nth-child(3)", item).text().trim()
-
-            const image_str =
-                $("a img", item).attr("data-cfsrc") ??
-                $("a img", item).attr("src") ??
-                ""
-            const image = image_str.substring(image_str.indexOf("https:") ?? 0)
-
-            results.push(
-                App.createPartialSourceManga({
-                    image,
-                    title: this.encodeText(title),
-                    mangaId: id,
-                    subtitle: this.encodeText(subtitle),
-                }),
-            )
-        }
-        return results
     }
 
     //LINK - ViewMore
